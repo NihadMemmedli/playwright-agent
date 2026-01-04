@@ -1,0 +1,19 @@
+{
+  "name": "test-script-converter",
+  "version": "1.0.0",
+  "description": "Convert natural language test specifications into production-ready Playwright test code using Claude Code Agent SDK.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "@playwright/test": "^1.57.0"
+  }
+}
