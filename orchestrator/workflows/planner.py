@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Load Claude credentials
 from load_env import setup_claude_env
+
 setup_claude_env()
 
 from claude_agent_sdk import query, ClaudeAgentOptions
@@ -112,10 +113,10 @@ Now convert this specification to JSON:
                 prompt=prompt,
                 options=ClaudeAgentOptions(
                     allowed_tools=["Read"],
-                    setting_sources=["project"]  # Enable .claude/ config
-                )
+                    setting_sources=["project"],  # Enable .claude/ config
+                ),
             ):
-                if hasattr(message, 'result'):
+                if hasattr(message, "result"):
                     result = message.result
                     # Extract JSON from markdown
                     plan = extract_json_from_markdown(result)
@@ -164,7 +165,8 @@ async def main():
         output_file.parent.mkdir(parents=True, exist_ok=True)
 
         import json
-        with open(output_file, 'w') as f:
+
+        with open(output_file, "w") as f:
             json.dump(plan, f, indent=2)
 
         print(f"\n✅ Plan saved to: {output_file}")
@@ -174,6 +176,7 @@ async def main():
     except Exception as e:
         print(f"\n❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

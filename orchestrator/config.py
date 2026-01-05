@@ -31,9 +31,10 @@ except ImportError:
         def setup_claude_env():
             pass
 
+
 def init():
     """Initialize environment and paths"""
     setup_claude_env()
-    
+
     # Ensure virtualenv is active or at least we warn?
     # (Optional validation logic here)

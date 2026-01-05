@@ -13,6 +13,7 @@ from pathlib import Path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 try:
     import config
+
     config.init()
 except ImportError:
     pass
@@ -43,7 +44,8 @@ async def end_to_end_test(spec_path: str):
         plan = await planner.create_plan(spec_content)
         plan_path = run_dir / "plan.json"
         import json
-        with open(plan_path, 'w') as f:
+
+        with open(plan_path, "w") as f:
             json.dump(plan, f, indent=2)
         print(f"✅ Plan saved to: {plan_path}")
         print()
@@ -54,7 +56,7 @@ async def end_to_end_test(spec_path: str):
         operator = Operator()
         run = await operator.execute_plan(plan, str(run_dir))
         run_path = run_dir / "run.json"
-        with open(run_path, 'w') as f:
+        with open(run_path, "w") as f:
             json.dump(run, f, indent=2)
         print(f"✅ Run saved to: {run_path}")
         print()
@@ -65,9 +67,9 @@ async def end_to_end_test(spec_path: str):
         exporter = Exporter()
         export_result = await exporter.export(run, "../tests/generated")
         export_path = run_dir / "export.json"
-        with open(export_path, 'w') as f:
+        with open(export_path, "w") as f:
             json.dump(export_result, f, indent=2)
-        test_file = export_result.get('testFilePath')
+        test_file = export_result.get("testFilePath")
         print(f"✅ Export saved to: {export_path}")
         print()
 
@@ -91,22 +93,30 @@ async def end_to_end_test(spec_path: str):
     except Exception as e:
         # Check for known SDK cleanup error
         error_msg = str(e)
-        if "cancel scope" in error_msg.lower() or "Cancelled via cancel scope" in error_msg:
-             # This is a known shutdown issue, but if we reached here from a crash,
-             # we need to be careful. Ideally we check if we finished successsfully.
-             # but this block captures ALL exceptions.
-             print(f"\n⚠️ Encountered SDK cleanup error: {e}")
-             print("Assuming test might have actually finished logic. Checking artifacts...")
-             # Check if export was created
-             if (run_dir / "export.json").exists():
-                 print("✅ Export artifact exists. Treating as SUCCESS despite cleanup error.")
-                 return True
-             else:
-                 print("❌ Export artifact missing. Test failed.")
-                 return False
+        if (
+            "cancel scope" in error_msg.lower()
+            or "Cancelled via cancel scope" in error_msg
+        ):
+            # This is a known shutdown issue, but if we reached here from a crash,
+            # we need to be careful. Ideally we check if we finished successsfully.
+            # but this block captures ALL exceptions.
+            print(f"\n⚠️ Encountered SDK cleanup error: {e}")
+            print(
+                "Assuming test might have actually finished logic. Checking artifacts..."
+            )
+            # Check if export was created
+            if (run_dir / "export.json").exists():
+                print(
+                    "✅ Export artifact exists. Treating as SUCCESS despite cleanup error."
+                )
+                return True
+            else:
+                print("❌ Export artifact missing. Test failed.")
+                return False
 
         print(f"\n❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 

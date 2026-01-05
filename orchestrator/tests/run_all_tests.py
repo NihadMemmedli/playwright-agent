@@ -26,6 +26,7 @@ async def run_test(test_name: str, test_func) -> bool:
     except Exception as e:
         print(f"\n❌ EXCEPTION in {test_name}: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -46,23 +47,19 @@ async def main():
 
     # Run tests
     results["Test 1: Basic Query"] = await run_test(
-        "Test 1: Basic Query",
-        test_basic_query
+        "Test 1: Basic Query", test_basic_query
     )
 
     results["Test 2: File Access"] = await run_test(
-        "Test 2: File Access",
-        test_file_access
+        "Test 2: File Access", test_file_access
     )
 
     results["Test 3: MCP Tool Access"] = await run_test(
-        "Test 3: MCP Tool Access",
-        test_mcp_access
+        "Test 3: MCP Tool Access", test_mcp_access
     )
 
     results["Test 4: Subagent Invocation"] = await run_test(
-        "Test 4: Subagent Invocation",
-        test_subagent
+        "Test 4: Subagent Invocation", test_subagent
     )
 
     # Summary

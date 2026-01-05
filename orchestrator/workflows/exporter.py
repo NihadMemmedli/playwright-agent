@@ -13,6 +13,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Load Claude credentials
 from load_env import setup_claude_env
+
 setup_claude_env()
 
 from claude_agent_sdk import query, ClaudeAgentOptions
@@ -50,25 +51,25 @@ class Exporter:
         validate_json_schema(export_result, self.schema_path)
 
         # Determine test file path
-        test_path = export_result.get('testFilePath')
+        test_path = export_result.get("testFilePath")
         # Remove test_dir prefix if already in the path
         if test_path.startswith(test_dir):
             test_path = test_path
-        elif not test_path.startswith('/') and not test_path.startswith('./'):
+        elif not test_path.startswith("/") and not test_path.startswith("./"):
             test_path = str(Path(test_dir) / test_path)
 
         # Save the test file
         test_file = Path(test_path)
         test_file.parent.mkdir(parents=True, exist_ok=True)
-        test_file.write_text(export_result['code'])
+        test_file.write_text(export_result["code"])
 
         print(f"✅ Test code generated")
         print(f"   File: {test_path}")
         print(f"   Dependencies: {', '.join(export_result.get('dependencies', []))}")
 
-        if export_result.get('notes'):
+        if export_result.get("notes"):
             print(f"   Notes:")
-            for note in export_result['notes']:
+            for note in export_result["notes"]:
                 print(f"     • {note}")
 
         return export_result
@@ -77,7 +78,8 @@ class Exporter:
         """Build the prompt for the agent"""
         import json
 
-        prompt = """You are a test code generation expert. Convert this test execution trace into production-ready Playwright test code in TypeScript.
+        prompt = (
+            """You are a test code generation expert. Convert this test execution trace into production-ready Playwright test code in TypeScript.
 
 CRITICAL INSTRUCTIONS:
 1. Follow Playwright best practices
@@ -88,7 +90,9 @@ CRITICAL INSTRUCTIONS:
 
 EXECUTION TRACE:
 ```json
-""" + json.dumps(run, indent=2) + """
+"""
+            + json.dumps(run, indent=2)
+            + """
 ```
 
 CODE STYLE REQUIREMENTS:
@@ -120,6 +124,7 @@ SELECTOR MAPPING:
 
 Now convert the execution trace to Playwright code and return the result as JSON. No other text.
 """
+        )
 
         return prompt
 
@@ -129,11 +134,10 @@ Now convert the execution trace to Playwright code and return the result as JSON
             async for message in query(
                 prompt=prompt,
                 options=ClaudeAgentOptions(
-                    allowed_tools=["Write"],
-                    setting_sources=["project"]
-                )
+                    allowed_tools=["Write"], setting_sources=["project"]
+                ),
             ):
-                if hasattr(message, 'result'):
+                if hasattr(message, "result"):
                     result = message.result
                     # Extract JSON from markdown
                     export_data = extract_json_from_markdown(result)
@@ -189,6 +193,7 @@ async def main():
     except Exception as e:
         print(f"\n❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

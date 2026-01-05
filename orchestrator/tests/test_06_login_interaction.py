@@ -39,15 +39,16 @@ Be very specific about each step."""
             options=ClaudeAgentOptions(
                 allowed_tools=["*"],
                 setting_sources=["project"],
-                permission_mode="bypassPermissions"
-            )
+                permission_mode="bypassPermissions",
+            ),
         ):
-            if hasattr(message, 'result'):
+            if hasattr(message, "result"):
                 print(f"Result:\n{message.result}\n")
                 return True
     except Exception as e:
         print(f"Error: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
@@ -56,5 +57,5 @@ if __name__ == "__main__":
     result = asyncio.run(test_login_form())
     print(f"\n{'=' * 80}")
     print(f"Test {'PASSED ✅' if result else 'FAILED ❌'}")
-    print('=' * 80)
+    print("=" * 80)
     sys.exit(0 if result else 1)

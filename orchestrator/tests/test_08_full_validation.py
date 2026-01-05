@@ -40,7 +40,7 @@ async def validate_full_chain():
 
     # Step 3: Execute first step
     print("🤖 Step 3: Executing first step with Playwright MCP")
-    first_step = plan['steps'][0]
+    first_step = plan["steps"][0]
     print(f"   Action: {first_step['action']}")
     print(f"   Target: {first_step['target']}")
     print(f"   Description: {first_step['description']}\n")
@@ -58,10 +58,10 @@ Tell me what happened."""
             options=ClaudeAgentOptions(
                 allowed_tools=["*"],
                 setting_sources=["project"],
-                permission_mode="bypassPermissions"
-            )
+                permission_mode="bypassPermissions",
+            ),
         ):
-            if hasattr(message, 'result'):
+            if hasattr(message, "result"):
                 print("📊 Execution Result:")
                 print("-" * 80)
                 print(message.result[:500])
@@ -80,6 +80,7 @@ Tell me what happened."""
     except Exception as e:
         print(f"❌ FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 

@@ -36,14 +36,13 @@ Reply with just the content of the file, nothing else."""
 
         message_count = 0
         async for message in query(
-            prompt=prompt,
-            options=ClaudeAgentOptions(allowed_tools=["Read"])
+            prompt=prompt, options=ClaudeAgentOptions(allowed_tools=["Read"])
         ):
             message_count += 1
             print(f"Message {message_count}:")
             print(f"  Type: {type(message)}")
 
-            if hasattr(message, 'result'):
+            if hasattr(message, "result"):
                 print(f"  Result: {message.result}")
                 if "Hello from test file" in message.result:
                     print(f"  ✅ File content correctly read!")
@@ -54,6 +53,7 @@ Reply with just the content of the file, nothing else."""
     except Exception as e:
         print(f"❌ FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 

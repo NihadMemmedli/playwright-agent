@@ -33,10 +33,10 @@ async def test_vague_descriptions():
             options=ClaudeAgentOptions(
                 allowed_tools=["*"],
                 setting_sources=["project"],
-                permission_mode="bypassPermissions"
-            )
+                permission_mode="bypassPermissions",
+            ),
         ):
-            if hasattr(message, 'result'):
+            if hasattr(message, "result"):
                 print(f"\nResult:\n{message.result}\n")
                 return True
     except Exception as e:
@@ -53,5 +53,5 @@ if __name__ == "__main__":
     else:
         print("❌ TEST FAILED: Vague descriptions don't work")
         print("   We need to fix the Planner to output proper selectors")
-    print('=' * 80)
+    print("=" * 80)
     sys.exit(0 if result else 1)

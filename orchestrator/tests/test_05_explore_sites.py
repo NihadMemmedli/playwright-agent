@@ -20,7 +20,7 @@ async def explore_site(site_url: str, test_name: str):
     print(f"\n{'=' * 80}")
     print(f"EXPLORING: {test_name}")
     print(f"URL: {site_url}")
-    print('=' * 80)
+    print("=" * 80)
 
     prompt = f"""Use Playwright MCP to:
 
@@ -38,11 +38,10 @@ Be very specific about element roles, labels, and IDs."""
         async for message in query(
             prompt=prompt,
             options=ClaudeAgentOptions(
-                allowed_tools=["*"],
-                setting_sources=["project"]
-            )
+                allowed_tools=["*"], setting_sources=["project"]
+            ),
         ):
-            if hasattr(message, 'result'):
+            if hasattr(message, "result"):
                 print(message.result)
         return True
     except Exception as e:

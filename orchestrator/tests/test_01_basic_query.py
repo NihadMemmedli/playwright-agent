@@ -26,7 +26,7 @@ async def test_basic_query():
         message_count = 0
         async for message in query(
             prompt="What is 2+2? Reply with just the number.",
-            options=ClaudeAgentOptions(allowed_tools=[])
+            options=ClaudeAgentOptions(allowed_tools=[]),
         ):
             message_count += 1
             print(f"Message {message_count}:")
@@ -35,11 +35,11 @@ async def test_basic_query():
             print()
 
             # Check different possible attributes
-            if hasattr(message, 'result'):
+            if hasattr(message, "result"):
                 print(f"  ✅ Has 'result' attribute: {message.result}")
-            if hasattr(message, 'content'):
+            if hasattr(message, "content"):
                 print(f"  ✅ Has 'content' attribute: {message.content}")
-            if hasattr(message, 'text'):
+            if hasattr(message, "text"):
                 print(f"  ✅ Has 'text' attribute: {message.text}")
 
         print()
@@ -49,6 +49,7 @@ async def test_basic_query():
     except Exception as e:
         print(f"❌ FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 

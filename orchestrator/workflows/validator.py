@@ -14,6 +14,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Load Claude credentials
 from load_env import setup_claude_env
+
 setup_claude_env()
 
 from claude_agent_sdk import query, ClaudeAgentOptions
@@ -56,14 +57,14 @@ class Validator:
             print("🚀 Running test...")
             result = await self._run_test(test_file)
 
-            if result.get('passed'):
+            if result.get("passed"):
                 print("✅ Test passed!")
                 validation_result = {
                     "status": "success",
                     "attempts": attempt,
                     "testFile": test_file,
                     "message": "Test passed successfully",
-                    "timestamp": datetime.now().isoformat()
+                    "timestamp": datetime.now().isoformat(),
                 }
                 break
 
@@ -73,21 +74,25 @@ class Validator:
 
             if attempt < self.max_attempts:
                 print(f"\n🔧 Attempting to fix...")
-                fix_result = await self._fix_test(test_file, result.get('output'), test_code)
+                fix_result = await self._fix_test(
+                    test_file, result.get("output"), test_code
+                )
 
-                if fix_result.get('status') == 'fixed':
+                if fix_result.get("status") == "fixed":
                     print("✅ Fix applied, re-running...")
                     test_code = test_path.read_text()  # Read updated code
                 else:
-                    print(f"⚠️  Could not fix automatically: {fix_result.get('remainingIssues')}")
+                    print(
+                        f"⚠️  Could not fix automatically: {fix_result.get('remainingIssues')}"
+                    )
                     validation_result = {
                         "status": "failed",
                         "attempts": attempt,
                         "testFile": test_file,
                         "message": "Could not fix automatically",
-                        "remainingIssues": fix_result.get('remainingIssues'),
-                        "lastError": result.get('output'),
-                        "timestamp": datetime.now().isoformat()
+                        "remainingIssues": fix_result.get("remainingIssues"),
+                        "lastError": result.get("output"),
+                        "timestamp": datetime.now().isoformat(),
                     }
                     break
         else:
@@ -97,8 +102,8 @@ class Validator:
                 "attempts": self.max_attempts,
                 "testFile": test_file,
                 "message": f"Failed after {self.max_attempts} attempts",
-                "lastError": result.get('output'),
-                "timestamp": datetime.now().isoformat()
+                "lastError": result.get("output"),
+                "timestamp": datetime.now().isoformat(),
             }
 
         # Save validation result
@@ -106,7 +111,7 @@ class Validator:
             output_path = Path(output_dir)
             output_path.mkdir(parents=True, exist_ok=True)  # Create directory if needed
             validation_file = output_path / "validation.json"
-            with open(validation_file, 'w') as f:
+            with open(validation_file, "w") as f:
                 json.dump(validation_result, f, indent=2)
             print(f"\n✅ Validation result saved to: {validation_file}")
 
@@ -122,34 +127,28 @@ class Validator:
                 shell=True,
                 capture_output=True,
                 text=True,
-                timeout=60
+                timeout=60,
             )
 
             output = result.stdout + result.stderr
 
             # Check if test passed
-            passed = result.returncode == 0 and ('passed' in output)
+            passed = result.returncode == 0 and ("passed" in output)
 
-            return {
-                "passed": passed,
-                "exitCode": result.returncode,
-                "output": output
-            }
+            return {"passed": passed, "exitCode": result.returncode, "output": output}
 
         except subprocess.TimeoutExpired:
             return {
                 "passed": False,
                 "exitCode": -1,
-                "output": "Test timed out after 60 seconds"
+                "output": "Test timed out after 60 seconds",
             }
         except Exception as e:
-            return {
-                "passed": False,
-                "exitCode": -1,
-                "output": str(e)
-            }
+            return {"passed": False, "exitCode": -1, "output": str(e)}
 
-    async def _fix_test(self, test_file: str, error_output: str, test_code: str) -> Dict:
+    async def _fix_test(
+        self, test_file: str, error_output: str, test_code: str
+    ) -> Dict:
         """Use Agent to fix the test based on error output"""
         test_path = Path(test_file)
 
@@ -205,10 +204,10 @@ Fix the test now.
                 options=ClaudeAgentOptions(
                     allowed_tools=["*"],  # All tools including MCP and Write
                     setting_sources=["project"],
-                    permission_mode="bypassPermissions"
-                )
+                    permission_mode="bypassPermissions",
+                ),
             ):
-                if hasattr(message, 'result'):
+                if hasattr(message, "result"):
                     result = message.result
                     fix_report = extract_json_from_markdown(result)
 
@@ -217,7 +216,7 @@ Fix the test now.
 
                     if updated_code != test_code:
                         print(f"✅ Test file updated")
-                        if fix_report.get('status') == 'fixed':
+                        if fix_report.get("status") == "fixed":
                             print(f"   Fix: {fix_report.get('fixApplied')}")
 
                     return fix_report
@@ -226,7 +225,7 @@ Fix the test now.
             return {
                 "status": "failed",
                 "originalError": str(e),
-                "remainingIssues": ["Validator error: " + str(e)]
+                "remainingIssues": ["Validator error: " + str(e)],
             }
 
 
@@ -251,16 +250,16 @@ async def main():
         validator = Validator()
         result = await validator.validate_and_fix(test_file, output_dir)
 
-        print("\n" + "="*80)
+        print("\n" + "=" * 80)
         print("VALIDATION COMPLETE")
-        print("="*80)
+        print("=" * 80)
 
-        if result.get('status') == 'success':
+        if result.get("status") == "success":
             print(f"✅ {result.get('message')}")
             print(f"   Attempts: {result.get('attempts')}")
         else:
             print(f"❌ {result.get('message')}")
-            if result.get('lastError'):
+            if result.get("lastError"):
                 print(f"\nLast error:\n{result.get('lastError')}")
 
         print()
@@ -268,6 +267,7 @@ async def main():
     except Exception as e:
         print(f"\n❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

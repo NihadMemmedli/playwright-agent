@@ -14,14 +14,18 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 # Load Claude credentials
 from load_env import setup_claude_env
+
 setup_claude_env()
 
 # MONKEYPATCH: Increase buffer size limit for Playwright snapshots
 # The default is 1MB, which is too small for large pages/tables.
 try:
     import claude_agent_sdk._internal.transport.subprocess_cli
+
     # Set to 50MB
-    claude_agent_sdk._internal.transport.subprocess_cli._DEFAULT_MAX_BUFFER_SIZE = 50 * 1024 * 1024
+    claude_agent_sdk._internal.transport.subprocess_cli._DEFAULT_MAX_BUFFER_SIZE = (
+        50 * 1024 * 1024
+    )
 except ImportError:
     print("WARNING: Could not monkeypatch SDK buffer size via _internal")
 except Exception as e:
@@ -62,9 +66,9 @@ class Operator:
         validate_json_schema(run, self.schema_path)
 
         # Print summary
-        success_count = run.get('successCount', 0)
-        failure_count = run.get('failureCount', 0)
-        final_state = run.get('finalState', 'unknown')
+        success_count = run.get("successCount", 0)
+        failure_count = run.get("failureCount", 0)
+        final_state = run.get("finalState", "unknown")
 
         print(f"✅ Execution complete: {final_state.upper()}")
         print(f"   ✅ Passed: {success_count}")
@@ -74,8 +78,9 @@ class Operator:
         if run_dir:
             # Move any generated screenshots from CWD to run_dir
             import shutil
-            for file in os.listdir('.'):
-                if file.endswith('.png'):
+
+            for file in os.listdir("."):
+                if file.endswith(".png"):
                     try:
                         shutil.move(file, os.path.join(run_dir, file))
                         print(f"📦 Moved {file} to {run_dir}")
@@ -90,7 +95,7 @@ class Operator:
         import json
 
         # Get current timestamp for the agent
-        start_time = datetime.utcnow().isoformat() + 'Z'
+        start_time = datetime.utcnow().isoformat() + "Z"
 
         prompt = f"""You are a test execution expert. Execute this test plan using Playwright MCP tools.
 
@@ -153,7 +158,7 @@ MUST DO:
 - NO accessibility trees in output
 - Execute steps now and return ONLY the JSON
 """
-        
+
         if run_dir:
             # DO NOT pass path to agent to avoid buffer overflow/scanning
             prompt += f"\n\nSave any screenshots to the CURRENT WORKING DIRECTORY (e.g. screenshot_1.png). Do not use subfolders."
@@ -167,10 +172,10 @@ MUST DO:
                 options=ClaudeAgentOptions(
                     allowed_tools=["*"],  # All tools including MCP
                     setting_sources=["project"],  # Enable .claude/ and .mcp.json
-                    permission_mode="bypassPermissions"  # Auto-approve tools
-                )
+                    permission_mode="bypassPermissions",  # Auto-approve tools
+                ),
             ):
-                if hasattr(message, 'result'):
+                if hasattr(message, "result"):
                     result = message.result
                     # Extract JSON from markdown
                     run = extract_json_from_markdown(result)
@@ -230,7 +235,7 @@ async def main():
 
         # Save the run
         output_file = run_dir / "run.json"
-        with open(output_file, 'w') as f:
+        with open(output_file, "w") as f:
             json.dump(run, f, indent=2)
 
         print(f"\n✅ Run saved to: {output_file}")
@@ -242,6 +247,7 @@ async def main():
     except Exception as e:
         print(f"\n❌ Error: {e}")
         import traceback
+
         traceback.print_exc()
         sys.exit(1)
 

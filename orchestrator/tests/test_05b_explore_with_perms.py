@@ -29,10 +29,10 @@ Tell me what you see on the page."""
             options=ClaudeAgentOptions(
                 allowed_tools=["*"],
                 setting_sources=["project"],
-                permission_mode="bypassPermissions"  # Auto-approve all tools
-            )
+                permission_mode="bypassPermissions",  # Auto-approve all tools
+            ),
         ):
-            if hasattr(message, 'result'):
+            if hasattr(message, "result"):
                 print(f"\nResult:\n{message.result}\n")
                 return True
     except Exception as e:
@@ -45,10 +45,10 @@ Tell me what you see on the page."""
             options=ClaudeAgentOptions(
                 allowed_tools=["*"],
                 setting_sources=["project"],
-                permission_mode="acceptEdits"
-            )
+                permission_mode="acceptEdits",
+            ),
         ):
-            if hasattr(message, 'result'):
+            if hasattr(message, "result"):
                 print(f"\nResult:\n{message.result}\n")
                 return True
     except Exception as e:

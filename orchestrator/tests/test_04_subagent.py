@@ -52,14 +52,14 @@ Ask it to introduce itself and tell me what it says."""
             prompt=prompt,
             options=ClaudeAgentOptions(
                 allowed_tools=["Read"],
-                setting_sources=["project"]  # Enable .claude/ config
-            )
+                setting_sources=["project"],  # Enable .claude/ config
+            ),
         ):
             message_count += 1
             print(f"Message {message_count}:")
             print(f"  Type: {type(message)}")
 
-            if hasattr(message, 'result'):
+            if hasattr(message, "result"):
                 result = message.result
                 print(f"  Result: {result[:300]}...")
 
@@ -79,6 +79,7 @@ Ask it to introduce itself and tell me what it says."""
     except Exception as e:
         print(f"❌ FAILED: {e}")
         import traceback
+
         traceback.print_exc()
         return False
 
