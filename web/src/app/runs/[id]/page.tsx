@@ -13,7 +13,7 @@ export default function RunDetailPage() {
 
     useEffect(() => {
         if (!id) return;
-        fetch(`http://127.0.0.1:8000/runs/${id}`)
+        fetch(`http://127.0.0.1:8001/runs/${id}`)
             .then(res => res.json())
             .then(d => {
                 setData(d);

@@ -21,7 +21,7 @@ export default function SpecDetailPage() {
 
     useEffect(() => {
         if (!name) return;
-        fetch(`http://127.0.0.1:8000/specs/${name}`)
+        fetch(`http://127.0.0.1:8001/specs/${name}`)
             .then(res => res.json())
             .then(data => {
                 setContent(data.content);
@@ -57,7 +57,7 @@ export default function SpecDetailPage() {
 
     const runTest = async () => {
         try {
-            const res = await fetch('http://127.0.0.1:8000/runs', {
+            const res = await fetch('http://127.0.0.1:8001/runs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ spec_name: decodedName })

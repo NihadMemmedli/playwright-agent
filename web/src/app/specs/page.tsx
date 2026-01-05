@@ -14,7 +14,7 @@ export default function SpecsPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch('http://127.0.0.1:8000/specs')
+        fetch('http://127.0.0.1:8001/specs')
             .then(res => res.json())
             .then(data => {
                 setSpecs(data);
@@ -28,7 +28,7 @@ export default function SpecsPage() {
 
     const runTest = async (specName: string) => {
         try {
-            const res = await fetch('http://127.0.0.1:8000/runs', {
+            const res = await fetch('http://127.0.0.1:8001/runs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ spec_name: specName })

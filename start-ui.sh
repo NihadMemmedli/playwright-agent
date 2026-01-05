@@ -7,12 +7,12 @@ trap "kill 0" EXIT
 echo "🚀 Starting Playwright Agent UI..."
 
 # Start Backend
-echo "🐍 Starting Backend API (Port 8000)..."
+echo "🐍 Starting Backend API (Port 8001)..."
 cd orchestrator
 if [ -d "venv" ]; then
     source venv/bin/activate
 fi
-uvicorn api.main:app --host 0.0.0.0 --port 8000 > ../api.log 2>&1 &
+uvicorn api.main:app --host 0.0.0.0 --port 8001 > ../api.log 2>&1 &
 BACKEND_PID=$!
 cd ..
 
@@ -24,7 +24,7 @@ FRONTEND_PID=$!
 cd ..
 
 echo "✅ Services started!"
-echo "   - API: http://localhost:8000"
+echo "   - API: http://localhost:8001"
 echo "   - UI:  http://localhost:3000"
 echo ""
 echo "📝 Logs are being written to api.log and web.log"

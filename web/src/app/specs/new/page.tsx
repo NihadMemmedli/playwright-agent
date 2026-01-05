@@ -42,7 +42,7 @@ export default function NewSpecPage() {
             // Wait, we didn't add POST /specs to API. Let's add it or rely on user asking for it.
             // Actually, I should add it to main.py as well.
 
-            const res = await fetch('http://127.0.0.1:8000/specs', {
+            const res = await fetch('http://127.0.0.1:8001/specs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ name, content })

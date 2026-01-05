@@ -17,7 +17,7 @@ export default function RunsPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch('http://127.0.0.1:8000/runs')
+        fetch('http://127.0.0.1:8001/runs')
             .then(res => res.json())
             .then(data => {
                 setRuns(data);
