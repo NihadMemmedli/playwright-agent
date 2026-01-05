@@ -13,13 +13,14 @@ from datetime import datetime
 from pathlib import Path
 from typing import Optional
 
-def run_command(command: str, stream_output: bool = False) -> subprocess.CompletedProcess:
+def run_command(command: str, stream_output: bool = False, interactive: bool = False) -> subprocess.CompletedProcess:
     """
     Run a shell command using the current python executable.
     
     Args:
         command: The python command string (without 'python')
         stream_output: Whether to print stdout in real-time
+        interactive: Whether to attach stdin/stdout for user interaction
         
     Returns:
         CompletedProcess object
@@ -27,6 +28,10 @@ def run_command(command: str, stream_output: bool = False) -> subprocess.Complet
     # Use the same python interpreter that launch this CLI
     python_exe = sys.executable
     full_cmd = f"\"{python_exe}\" {command}"
+    
+    if interactive:
+        # Run interactively, inheriting stdio
+        return subprocess.run(full_cmd, shell=True)
     
     if stream_output:
         process = subprocess.Popen(
@@ -71,6 +76,7 @@ def print_output(result: subprocess.CompletedProcess):
 def main():
     parser = argparse.ArgumentParser(description="Convert natural language test specs to Playwright code.")
     parser.add_argument("spec", help="Path to the markdown specification file")
+    parser.add_argument("--interactive", "-i", action="store_true", help="Enable interactive mode (plan review and step confirmation)")
     
     args = parser.parse_args()
     spec_path = args.spec
@@ -114,14 +120,46 @@ def main():
         print(f"⚠️ Could not read plan summary: {e}")
     print()
 
+    # Interactive Review Loop
+    if args.interactive:
+        while True:
+            print("=" * 40)
+            print("🤔 Plan Review")
+            print("  [c] Continue to execution")
+            print("  [e] Edit plan manually")
+            print("  [q] Quit")
+            choice = input("Option: ").lower().strip()
+            
+            if choice == 'q':
+                sys.exit(0)
+            elif choice == 'e':
+                print(f"✏️  Edit the file at: {run_dir / 'plan.json'}")
+                input("Press Enter when done editing...")
+                # Reload plan to check validity (optional, but good practice)
+                try:
+                    plan = json.loads((run_dir / "plan.json").read_text())
+                    print("✅ Plan reloaded.")
+                except Exception as e:
+                    print(f"❌ Invalid JSON: {e}")
+                    continue
+            elif choice == 'c':
+                break
+
     # --- STAGE 2: EXECUTE ---
     print("🤖 Stage 2: Executing test plan...")
-    # Use streaming for Operator to show live progress
+    
+    # Construct Operator command
+    cmd = f"-u -m orchestrator.workflows.operator '{run_dir / 'plan.json'}' '{run_dir}'"
+    if args.interactive:
+        cmd += " --interactive"
+        
     result = run_command(
-        f"-u -m orchestrator.workflows.operator '{run_dir / 'plan.json'}' '{run_dir}'",
-        stream_output=True
+        cmd,
+        stream_output=True,
+        interactive=args.interactive 
     )
-    print_output(result)
+    if not args.interactive:
+        print_output(result)
 
     run_file = run_dir / "run.json"
     if run_file.exists():
