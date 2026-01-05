@@ -44,3 +44,6 @@ marketing/
 .claude/settings.local.json
 .claude/memory/
 
+
+# Node
+node_modules/
