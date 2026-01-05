@@ -12,7 +12,7 @@ This is a **Natural Language to Test Script Converter** - an AI-powered 4-stage 
 
 ### Convert Test Spec to Playwright Test
 ```bash
-./simple_orchestrator.py specs/your-test.md
+./convert-test specs/your-test.md
 ```
 
 This runs the complete 4-stage pipeline and produces:
@@ -83,7 +83,7 @@ Runs tests and automatically fixes failures.
 
 ### Subprocess Execution
 Each stage runs as a separate subprocess to avoid SDK cleanup issues:
-- Main orchestrator: `simple_orchestrator.py`
+- Main orchestrator: `orchestrator_runner.py` (via `./convert-test`)
 - Individual components: `orchestrator/workflows/{planner,operator,exporter,validator}.py`
 
 ### Credential Loading

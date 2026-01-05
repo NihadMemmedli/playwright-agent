@@ -35,5 +35,12 @@ tests/generated/
 .DS_Store
 Thumbs.db
 
-# Logs
 *.log
+
+# Project Specific
+marketing/
+.playwright-mcp/
+.claude/settings.json
+.claude/settings.local.json
+.claude/memory/
+

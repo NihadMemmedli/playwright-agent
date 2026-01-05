@@ -1,157 +1,52 @@
 # Test Specifications
 
-This directory contains natural language test specifications that will be converted to Playwright test code.
+This directory contains the natural language test specifications that drive the generation pipeline.
 
-## Available Test Scenarios
+## Available Scenarios
 
 ### 01_simple_navigation.md
-**Target**: https://example.com
-**Complexity**: ⭐ Basic
-**Features Tested**:
-- Page navigation
-- Element visibility
-- Screenshot capture
-
-**Use Case**: Verify the most basic test generation functionality
-
----
+-   **Target**: `example.com`
+-   **Focus**: Basic navigation, title verification, visibility checks.
+-   **Complexity**: Low
 
 ### 02_form_interaction.md
-**Target**: https://the-internet.herokuapp.com/login
-**Complexity**: ⭐⭐ Intermediate
-**Features Tested**:
-- Form filling (username, password)
-- Button clicking
-- Success message verification
-- URL change detection
-
-**Credentials**:
-- Username: `tomsmith`
-- Password: `SuperSecretPassword!`
-
-**Use Case**: Test form interaction and submission
-
----
+-   **Target**: `the-internet.herokuapp.com/login`
+-   **Focus**: Input extraction (username/password), button clicks, successful login verification.
+-   **Complexity**: Medium
 
 ### 03_multi_step_workflow.md
-**Target**: https://the-internet.herokuapp.com
-**Complexity**: ⭐⭐⭐ Advanced
-**Features Tested**:
-- Multi-page navigation
-- Link clicking
-- Login/logout flow
-- State verification at each step
-- Page transition handling
-
-**Use Case**: Test complete user workflow with multiple steps
-
----
+-   **Target**: `the-internet.herokuapp.com/login`
+-   **Focus**: Full session lifecycle: Login -> Verify Secure Area -> Logout -> Verify Login Page. Tests state persistence and navigation flow.
+-   **Complexity**: High
 
 ### 04_dynamic_content.md
-**Target**: https://the-internet.herokuapp.com/dynamic_loading/1
-**Complexity**: ⭐⭐⭐ Advanced
-**Features Tested**:
-- Dynamic content handling
-- Waiting for async operations
-- Negative assertions (content NOT visible initially)
-- Positive assertions (content visible after loading)
-- Loading state detection
+-   **Target**: `the-internet.herokuapp.com/dynamic_loading/1`
+-   **Focus**: Handling asynchronous content loading. Verifies "Loading..." states and eventual element visibility without hardcoded waits.
+-   **Complexity**: High
 
-**Use Case**: Test dynamic/async content handling
+### 05_ecommerce_workflow.md
+-   **Target**: `demoblaze.com`
+-   **Focus**: Complex user journey: Home -> Product -> Add to Cart -> Cart Page -> Verify Item. Handles alerts and page transitions.
+-   **Complexity**: High
 
----
+### 06_form_validation.md
+-   **Target**: `practicetestautomation.com`
+-   **Focus**: Negative testing. Verifies that invalid credentials trigger the correct error messages.
+-   **Complexity**: Medium
 
-## Test Site Information
-
-All tests use public demo sites:
-
-### The Internet (Herokuapp)
-- **URL**: https://the-internet.herokuapp.com
-- **Purpose**: Popular testing site with various UI scenarios
-- **Stability**: Very stable, maintained for testing
-- **No Authentication Required**: Public access
-
-### Example.com
-- **URL**: https://example.com
-- **Purpose**: Basic HTML page for simple tests
-- **Stability**: Extremely stable (IANA reserved domain)
-
----
+### 07_ui_controls.md
+-   **Target**: `the-internet.herokuapp.com`
+-   **Focus**: Form elements: Checkboxes (toggle state) and Dropdowns (select option).
+-   **Complexity**: Medium
 
 ## Usage
 
-### Run Single Test Conversion
+Run a specific spec:
 ```bash
 ./convert-test specs/01_simple_navigation.md
 ```
 
-### Run All Tests
+Run all specs:
 ```bash
-for spec in specs/*.md; do
-  ./convert-test "$spec"
-done
+for f in specs/*.md; do ./convert-test "$f"; done
 ```
-
-### Execute Generated Tests
-```bash
-# First, ensure Playwright is installed
-npm install -D @playwright/test
-npx playwright install
-
-# Run generated tests
-npx playwright test tests/generated/
-```
-
----
-
-## Adding New Test Scenarios
-
-To add a new test scenario:
-
-1. Create a new markdown file in this directory
-2. Follow the existing format:
-   ```markdown
-   # Test: Name
-
-   ## Description
-   What this test validates
-
-   ## Steps
-   1. Step one
-   2. Step two
-   ...
-
-   ## Expected Outcome
-   What should happen
-   ```
-3. Be specific about:
-   - URLs to visit
-   - Elements to interact with
-   - Text/labels to look for
-   - Expected outcomes
-4. Use numbered steps for clarity
-5. Include any necessary credentials or data
-
----
-
-## Test Naming Convention
-
-Use this naming pattern:
-```
-{number}_{category}_{specific_scenario}.md
-```
-
-Examples:
-- `01_simple_navigation.md`
-- `02_form_interaction.md`
-- `03_multi_step_workflow.md`
-- `04_dynamic_content.md`
-
----
-
-## Notes
-
-- All tests use real, publicly available websites
-- No mocking or stubbing
-- Tests demonstrate real browser automation
-- Sites chosen for stability and reliability

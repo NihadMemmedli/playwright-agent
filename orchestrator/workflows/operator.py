@@ -22,7 +22,6 @@ try:
     import claude_agent_sdk._internal.transport.subprocess_cli
     # Set to 50MB
     claude_agent_sdk._internal.transport.subprocess_cli._DEFAULT_MAX_BUFFER_SIZE = 50 * 1024 * 1024
-    print("DEBUG: Monkeypatched SDK buffer size to 50MB")
 except ImportError:
     print("WARNING: Could not monkeypatch SDK buffer size via _internal")
 except Exception as e:
@@ -71,6 +70,17 @@ class Operator:
         print(f"   ✅ Passed: {success_count}")
         if failure_count > 0:
             print(f"   ❌ Failed: {failure_count}")
+
+        if run_dir:
+            # Move any generated screenshots from CWD to run_dir
+            import shutil
+            for file in os.listdir('.'):
+                if file.endswith('.png'):
+                    try:
+                        shutil.move(file, os.path.join(run_dir, file))
+                        print(f"📦 Moved {file} to {run_dir}")
+                    except Exception as e:
+                        print(f"⚠️ Failed to move {file}: {e}")
 
         return run
 

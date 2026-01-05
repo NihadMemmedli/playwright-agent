@@ -4,7 +4,7 @@
 
 # Get the directory where this script is located
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
+PROJECT_DIR="$SCRIPT_DIR"
 
 # Activate virtual environment
 source "$PROJECT_DIR/orchestrator/venv/bin/activate"
@@ -12,5 +12,5 @@ source "$PROJECT_DIR/orchestrator/venv/bin/activate"
 # Change to project directory
 cd "$PROJECT_DIR"
 
-# Run the main orchestrator
-python orchestrator/main.py "$@"
+# Run the orchestrator runner
+./orchestrator_runner.py "$@"
