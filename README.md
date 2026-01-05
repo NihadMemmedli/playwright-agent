@@ -13,6 +13,7 @@ This automated pipeline transforms markdown-based test descriptions into executa
 
 ## ✨ Features
 - **🤖 Natural Language to Code**: Convert simple English instructions into Playwright tests.
+- **🖥️ Web Dashboard**: Manage specifications, run tests, and view results in a modern UI.
 - **👁️ Interactive Mode**: Review plans and verify execution in real-time (`--interactive`).
 - **📊 Rich Reporting**: Generates HTML reports and GIF replays of the execution.
 - **🛡️ Self-Healing**: Automatically detects errors (timeouts, changed selectors) and fixes them on the fly.
@@ -21,7 +22,14 @@ This automated pipeline transforms markdown-based test descriptions into executa
 
 ## 🚀 Usage
 
-### Simple Execution
+### Web UI (Recommended)
+Launch the full dashboard to manage your tests visually:
+```bash
+./start-ui.sh
+```
+Access the dashboard at [http://localhost:3000](http://localhost:3000).
+
+### CLI Execution
 ```bash
 playwright-agent specs/login_test.md
 ```

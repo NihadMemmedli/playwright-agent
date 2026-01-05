@@ -84,6 +84,10 @@ def main():
         action="store_true",
         help="Enable interactive mode (plan review and step confirmation)",
     )
+    parser.add_argument(
+        "--run-dir",
+        help="Specific directory to store run artifacts",
+    )
 
     args = parser.parse_args()
     spec_path = args.spec
@@ -94,8 +98,12 @@ def main():
         sys.exit(1)
 
     # Setup Run Directory
-    run_id = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
-    run_dir = Path(f"runs/{run_id}")
+    if args.run_dir:
+        run_dir = Path(args.run_dir)
+    else:
+        run_id = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+        run_dir = Path(f"runs/{run_id}")
+    
     run_dir.mkdir(parents=True, exist_ok=True)
 
     print("=" * 80)

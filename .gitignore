@@ -16,7 +16,8 @@ build/
 .claude/settings.local.json
 
 # Test outputs
-runs/
+/runs/
+
 tests/generated/
 *.png
 
