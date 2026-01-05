@@ -194,11 +194,14 @@ OUTPUT FORMAT:
         prompt = f"""You are a test execution expert. Execute this test plan using Playwright MCP tools.
 
 CRITICAL INSTRUCTIONS - MUST FOLLOW:
-1. Execute the steps IN ORDER
-2. **FORBIDDEN TOOL**: `mcp__playwright__browser_snapshot`. DO NOT USE IT. It causes crashes.
-3. Use `mcp__playwright__browser_take_screenshot` for screenshots.
 4. Use `mcp__playwright__browser_evaluate` or `getBy...` for validation.
-5. Output ONLY valid JSON
+5. **SELF-CORRECTION**: If a step fails (e.g. timeout, selector not found):
+   a. DO NOT FAIL IMMEDIATELY.
+   b. Use `mcp__playwright__get_accessibility_tree` or text content to analyze the page.
+   c. DETERMINE A FIX (e.g. found button with different ID or text).
+   d. RETRY the action with the corrected selector.
+   e. Only return failure if 3 attempts fail.
+6. Output ONLY valid JSON
 
 TEST PLAN:
 ```json
