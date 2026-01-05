@@ -4,3 +4,4 @@ python-dotenv>=1.0.0
 black
 pytest
 pytest-asyncio
+Pillow>=10.0.0

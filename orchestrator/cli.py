@@ -172,6 +172,14 @@ def main():
     else:
         print("❌ Run not found")
         sys.exit(1)
+    
+    # --- REPORT GENERATION ---
+    try:
+        from orchestrator.reporting.report_generator import ReportGenerator
+        generator = ReportGenerator(str(run_dir))
+        generator.generate()
+    except Exception as e:
+        print(f"⚠️ Report generation failed: {e}")
     print()
 
     # --- STAGE 3: EXPORT ---
