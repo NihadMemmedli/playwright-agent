@@ -39,14 +39,14 @@ This automated pipeline transforms markdown-based test descriptions into executa
 git clone https://github.com/your-username/playwright-agent.git
 cd playwright-agent
 
-# 2. Install Python dependencies
+# 2. Install the package (and Python dependencies)
 cd orchestrator
 python3 -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
+cd ..
+pip install -e .
 
 # 3. Install Node.js dependencies
-cd ..
 npm install @playwright/test --save-dev
 
 # 4. Install Playwright browsers
@@ -76,7 +76,7 @@ Ensure your `~/.claude/settings.json` is configured as follows:
 ### Convert a Test Spec
 
 ```bash
-./convert-test specs/your-test.md
+playwright-agent specs/your-test.md
 ```
 
 **Output:**

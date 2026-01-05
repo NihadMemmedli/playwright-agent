@@ -1,43 +1,41 @@
 #!/usr/bin/env python3
 """
-Orchestrator Runner
-Runs the test generation pipeline stages as isolated subprocesses.
+Playwright Agent CLI
+Entry point for natural language test generation.
 """
 
-import subprocess
+import argparse
 import sys
 import json
 import shutil
+import subprocess
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Any, Optional
-
-# Constants
-VENV_ACTIVATE = "source orchestrator/venv/bin/activate"
-
+from typing import Optional
 
 def run_command(command: str, stream_output: bool = False) -> subprocess.CompletedProcess:
     """
-    Run a shell command in the python virtual environment.
+    Run a shell command using the current python executable.
     
     Args:
-        command: The python command to run
+        command: The python command string (without 'python')
         stream_output: Whether to print stdout in real-time
         
     Returns:
         CompletedProcess object
     """
-    full_cmd = f"{VENV_ACTIVATE} && {command}"
+    # Use the same python interpreter that launch this CLI
+    python_exe = sys.executable
+    full_cmd = f"\"{python_exe}\" {command}"
     
     if stream_output:
-        # For streaming, we use Popen but wrap it to look like run() result
         process = subprocess.Popen(
             full_cmd,
             shell=True,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             text=True,
-            bufsize=1  # Line buffered
+            bufsize=1 
         )
         
         stdout_lines = []
@@ -53,13 +51,11 @@ def run_command(command: str, stream_output: bool = False) -> subprocess.Complet
         stderr = process.stderr.read()
         return_code = process.poll()
         
-        # Mock CompletedProcess
         result = subprocess.CompletedProcess(args=full_cmd, returncode=return_code)
         result.stdout = "".join(stdout_lines)
         result.stderr = stderr
         return result
     else:
-        # Standard run
         return subprocess.run(
             full_cmd,
             shell=True,
@@ -67,23 +63,17 @@ def run_command(command: str, stream_output: bool = False) -> subprocess.Complet
             text=True
         )
 
-
 def print_output(result: subprocess.CompletedProcess):
     """Print stdout and safe stderr from process result."""
-    if result.stdout and not result.stdout.strip() == "":
-        # If we didn't stream it, print it now (avoid double printing)
-        pass 
-        
     if result.stderr and "cancel scope" not in result.stderr:
         print(f"STDERR: {result.stderr}", file=sys.stderr)
 
-
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: ./convert-test <spec-file>")
-        sys.exit(1)
-
-    spec_path = sys.argv[1]
+    parser = argparse.ArgumentParser(description="Convert natural language test specs to Playwright code.")
+    parser.add_argument("spec", help="Path to the markdown specification file")
+    
+    args = parser.parse_args()
+    spec_path = args.spec
     spec_file = Path(spec_path)
 
     if not spec_file.exists():
@@ -102,7 +92,8 @@ def main():
 
     # --- STAGE 1: PLAN ---
     print("📋 Stage 1: Creating test plan...")
-    result = run_command(f"python orchestrator/workflows/planner.py '{spec_path}'")
+    # Invoke inner modules using -m to ensure package resolution works
+    result = run_command(f"-m orchestrator.workflows.planner '{spec_path}'")
     print_output(result)
 
     plan_src = Path("runs/test_plan.json")
@@ -111,19 +102,23 @@ def main():
         print(f"✅ Plan saved to: {run_dir / 'plan.json'}")
     else:
         print("❌ Plan not found")
+        if result.stdout: print(result.stdout)
         sys.exit(1)
 
     # Test Plan Summary
-    plan = json.loads((run_dir / "plan.json").read_text())
-    print(f"   Test: {plan.get('testName')}")
-    print(f"   Steps: {len(plan.get('steps', []))}")
+    try:
+        plan = json.loads((run_dir / "plan.json").read_text())
+        print(f"   Test: {plan.get('testName')}")
+        print(f"   Steps: {len(plan.get('steps', []))}")
+    except Exception as e:
+        print(f"⚠️ Could not read plan summary: {e}")
     print()
 
     # --- STAGE 2: EXECUTE ---
     print("🤖 Stage 2: Executing test plan...")
     # Use streaming for Operator to show live progress
     result = run_command(
-        f"python -u orchestrator/workflows/operator.py '{run_dir / 'plan.json'}' '{run_dir}'",
+        f"-u -m orchestrator.workflows.operator '{run_dir / 'plan.json'}' '{run_dir}'",
         stream_output=True
     )
     print_output(result)
@@ -131,9 +126,11 @@ def main():
     run_file = run_dir / "run.json"
     if run_file.exists():
         print(f"✅ Run saved to: {run_file}")
-        run = json.loads(run_file.read_text())
-        print(f"   Final state: {run.get('finalState')}")
-        print(f"   Duration: {run.get('duration', 0):.1f}s")
+        try:
+            run = json.loads(run_file.read_text())
+            print(f"   Final state: {run.get('finalState')}")
+            print(f"   Duration: {run.get('duration', 0):.1f}s")
+        except: pass
     else:
         print("❌ Run not found")
         sys.exit(1)
@@ -141,55 +138,55 @@ def main():
 
     # --- STAGE 3: EXPORT ---
     print("📤 Stage 3: Generating test code...")
-    result = run_command(f"python orchestrator/workflows/exporter.py '{run_dir / 'run.json'}'")
+    result = run_command(f"-m orchestrator.workflows.exporter '{run_dir / 'run.json'}'")
     print_output(result)
     
-    # Check stdout for export result if needed, but we look for file
-    if result.stdout:
-        print(result.stdout)
-
     export_file = run_dir / "export.json"
     if export_file.exists():
         print(f"✅ Export saved to: {export_file}")
-        export_data = json.loads(export_file.read_text())
-        test_path = export_data.get('testFilePath')
-        print(f"   Test file: {test_path}")
+        try:
+            export_data = json.loads(export_file.read_text())
+            test_path = export_data.get('testFilePath')
+            print(f"   Test file: {test_path}")
+        except: test_path = None
     else:
         print("❌ Export not found")
+        if result.stdout: print(result.stdout)
         sys.exit(1)
     print()
 
     # --- STAGE 4: VALIDATE ---
-    print("🔍 Stage 4: Validating generated test...")
-    result = run_command(f"python orchestrator/workflows/validator.py '{test_path}' '{run_dir}'")
-    print_output(result)
-    
-    if result.stdout:
-        print(result.stdout)
-
-    validation_file = run_dir / "validation.json"
-    validation_data = {}
-    if validation_file.exists():
-        validation_data = json.loads(validation_file.read_text())
-        if validation_data.get('status') == 'success':
-            print(f"✅ Validation passed after {validation_data.get('attempts', 1)} attempt(s)")
-        else:
-            print(f"⚠️  Validation had issues: {validation_data.get('message')}")
+    if test_path:
+        print("🔍 Stage 4: Validating generated test...")
+        result = run_command(f"-m orchestrator.workflows.validator '{test_path}' '{run_dir}'")
+        print_output(result)
+        
+        validation_file = run_dir / "validation.json"
+        validation_data = {}
+        if validation_file.exists():
+            try:
+                validation_data = json.loads(validation_file.read_text())
+                if validation_data.get('status') == 'success':
+                    print(f"✅ Validation passed after {validation_data.get('attempts', 1)} attempt(s)")
+                else:
+                    print(f"⚠️  Validation had issues: {validation_data.get('message')}")
+            except: pass
     print()
 
     # --- SUMMARY ---
     print("=" * 80)
     print("✅ CONVERSION COMPLETE")
     print("=" * 80)
-    print(f"Test file: {test_path}")
+    if test_path:
+        print(f"Test file: {test_path}")
     print(f"Artifacts: {run_dir}")
     if validation_data.get('status') == 'success':
         print(f"✅ Test validated and passing")
     print()
-    print("To run the test:")
-    print(f"  npx playwright test {test_path}")
+    if test_path:
+        print("To run the test:")
+        print(f"  npx playwright test {test_path}")
     print()
-
 
 if __name__ == "__main__":
     main()
