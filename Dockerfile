@@ -23,11 +23,15 @@ RUN pip install --no-cache-dir playwright
 # Copy the entire project
 COPY . /app
 
+# Create a non-root user to satisfy Claude Agent SDK security requirements
+RUN useradd -m agent && \
+    chown -R agent:agent /app
+
+# Switch to non-root user
+USER agent
+
 # Set python path
 ENV PYTHONPATH=/app
-
-# Expose any necessary ports (not strictly needed for CLI but good practice)
-# EXPOSE 8080
 
 # Default entrypoint
 ENTRYPOINT ["python", "-m", "orchestrator.cli"]
