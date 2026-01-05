@@ -41,7 +41,9 @@ class Operator:
     def __init__(self, schema_path: str = "schemas/run.schema.json"):
         self.schema_path = schema_path
 
-    async def execute_plan(self, plan: Dict, run_dir: str = None, interactive: bool = False) -> Dict:
+    async def execute_plan(
+        self, plan: Dict, run_dir: str = None, interactive: bool = False
+    ) -> Dict:
         """
         Execute a test plan using Playwright MCP.
 
@@ -71,7 +73,7 @@ class Operator:
 
         # Print summary
         self._print_summary(run)
-        
+
         if run_dir:
             self._move_artifacts(run_dir)
 
@@ -80,24 +82,29 @@ class Operator:
     async def _execute_plan_interactive(self, plan: Dict, run_dir: str = None) -> Dict:
         """
         Interactive Mode Wrapper.
-        
+
         NOTE: True step-by-step execution with "Execute? [y/n]" is currently disabled because
         the browser session resets between steps in the current architecture.
-        
+
         Instead, we run the full plan after the user has reviewed/edited it in the CLI stage.
         """
-        print("ℹ️  Interactive Mode: Step-by-step confirmation is disabled to maintain browser state.")
+        print(
+            "ℹ️  Interactive Mode: Step-by-step confirmation is disabled to maintain browser state."
+        )
         print("   Running full plan execution...")
         print()
 
         # Fallback to normal execution to keep browser open
         return await self.execute_plan(plan, run_dir, interactive=False)
 
-    def _build_single_step_prompt(self, step: Dict, plan: Dict, run_dir: str = None) -> str:
+    def _build_single_step_prompt(
+        self, step: Dict, plan: Dict, run_dir: str = None
+    ) -> str:
         """Build prompt for a single step execution"""
         from datetime import datetime, timezone
+
         start_time = datetime.now(timezone.utc).isoformat()
-        
+
         prompt = f"""You are a test execution expert. Execute ONLY this specific step using Playwright MCP tools.
 
 STEP TO EXECUTE:
@@ -152,6 +159,7 @@ OUTPUT FORMAT:
 
     def _move_artifacts(self, run_dir: str):
         import shutil
+
         for file in os.listdir("."):
             if file.endswith(".png"):
                 try:
@@ -165,22 +173,21 @@ OUTPUT FORMAT:
     # The previous codeblock ended at line 264 (end of file).
     # I should be careful about _build_execution_prompt.
     # I will replace execute_plan and add the new methods, but I need to keep _build_execution_prompt and _query_agent.
-    
+
     # RE-STRATEGY: Use REPLACE for execute_plan, and ADD the new methods.
     # BUT `execute_plan` calls `_build_execution_prompt` which I need to keep.
-    
+
     # Let's just append the Helper methods and replace execute_plan.
-    
+
     # Actually, the file structure in my previous `view_file` output:
     # 44:    async def execute_plan(self, plan: Dict, run_dir: str = None) -> Dict:
     # ...
     # 92:    def _build_execution_prompt(self, plan: Dict, run_dir: str = None) -> str:
-    
+
     # I will replace `execute_plan` (lines 44-90).
     # And I will inserts the new methods after `_query_agent` (line 192) or at the end of the class.
-    
-    # Let's do it in chunks.
 
+    # Let's do it in chunks.
 
     def _build_execution_prompt(self, plan: Dict, run_dir: str = None) -> str:
         """Build the prompt for the agent"""
@@ -189,6 +196,7 @@ OUTPUT FORMAT:
 
         # Get current timestamp for the agent
         from datetime import timezone
+
         start_time = datetime.now(timezone.utc).isoformat()
 
         prompt = f"""You are a test execution expert. Execute this test plan using Playwright MCP tools.
@@ -278,7 +286,7 @@ MUST DO:
                     # Extract JSON from markdown
                     run = extract_json_from_markdown(result)
                     # Do not break, consume remaining messages to allow clean exit
-            
+
             return run
 
         except Exception as e:
@@ -289,8 +297,6 @@ MUST DO:
                 pass
             else:
                 raise RuntimeError(f"Failed to execute plan: {e}")
-
-
 
 
 # Convenience function for testing
@@ -320,13 +326,23 @@ async def execute_from_file(plan_path: str, run_dir: str = None) -> Dict:
 async def main():
     """Test the operator with a real plan"""
     import argparse
+
     parser = argparse.ArgumentParser(description="Execute a test plan.")
     parser.add_argument("plan", help="Path to the plan JSON file")
-    parser.add_argument("rundir", nargs="?", default="runs/test_execution", help="Directory to save artifacts")
-    parser.add_argument("--interactive", action="store_true", help="Ask for confirmation before each step")
-    
+    parser.add_argument(
+        "rundir",
+        nargs="?",
+        default="runs/test_execution",
+        help="Directory to save artifacts",
+    )
+    parser.add_argument(
+        "--interactive",
+        action="store_true",
+        help="Ask for confirmation before each step",
+    )
+
     args = parser.parse_args()
-    
+
     plan_path = args.plan
     run_dir = Path(args.rundir)
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -337,9 +353,11 @@ async def main():
         if not plan_file.exists():
             raise FileNotFoundError(f"Plan file not found: {plan_path}")
         plan = json.loads(plan_file.read_text())
-        
+
         operator = Operator()
-        run = await operator.execute_plan(plan, str(run_dir), interactive=args.interactive)
+        run = await operator.execute_plan(
+            plan, str(run_dir), interactive=args.interactive
+        )
 
         # Save the run
         output_file = run_dir / "run.json"

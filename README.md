@@ -12,16 +12,32 @@ Convert plain English test specifications into production-ready Playwright TypeS
 This automated pipeline transforms markdown-based test descriptions into executable Playwright tests. It leverages the power of LLMs (Claude) and the Claude Code Agent SDK to intelligently plan, execute, and validate test scenarios.
 
 ## ✨ Features
+- **🤖 Natural Language to Code**: Convert simple English instructions into Playwright tests.
+- **👁️ Interactive Mode**: Review plans and verify execution in real-time (`--interactive`).
+- **📊 Rich Reporting**: Generates HTML reports and GIF replays of the execution.
+- **🛡️ Self-Healing**: Automatically detects errors (timeouts, changed selectors) and fixes them on the fly.
+- **🏗️ Structured Output**: Produces Page Object Models (POM) and clean, maintainable code.
+- **⚡ Fast Execution**: Using intelligent caching and optimized browser contexts.
 
--   **🤖 AI-Powered Planning**: Converts natural language steps into structured execution plans.
--   **🔌 Live Browser Operation**: Interacts with a real browser to validate selectors and accessibility.
--   **🛠️ Auto-Correction**: Self-healing mechanism that attempts to fix tests if they fail validation.
--   **📦 Type-Safe Output**: Generates clean, readable TypeScript code compatible with Playwright test runner.
--   **🔍 Multi-Stage Pipeline**:
-    1.  **Planner**: Understands intent.
-    2.  **Operator**: Explores and validates.
-    3.  **Exporter**: Writes the code.
-    4.  **Validator**: Ensures reliability.
+## 🚀 Usage
+
+### Simple Execution
+```bash
+playwright-agent specs/login_test.md
+```
+
+### Interactive Mode
+Run with `--interactive` to review the plan before execution:
+```bash
+playwright-agent specs/login_test.md --interactive
+```
+
+### Output
+After execution, check the `runs/` directory for:
+- `report.html` - Detailed execution log
+- `execution.gif` - Visual replay
+- `run.video` - Full video (if enabled)
+- `export.json` - Generated Playwright code
 
 ## 📦 Installation
 

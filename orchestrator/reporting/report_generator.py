@@ -14,17 +14,18 @@ try:
 except ImportError:
     Image = None
 
+
 class ReportGenerator:
     def __init__(self, run_dir: str):
         self.run_dir = Path(run_dir)
         self.run_data = {}
         self.screenshots: List[Path] = []
-        
+
         # Load run data if exists
         run_file = self.run_dir / "run.json"
         if run_file.exists():
             self.run_data = json.loads(run_file.read_text())
-            
+
         # Find screenshots
         self.screenshots = sorted(list(self.run_dir.glob("*.png")))
 
@@ -39,21 +40,23 @@ class ReportGenerator:
         if not self.screenshots:
             print("   ⚠️ No screenshots found for GIF generation")
             return
-            
+
         if not Image:
             print("   ⚠️ Pillow not installed. Skipping GIF generation.")
             return
 
-        print(f"   🎞️ Creating execution GIF from {len(self.screenshots)} screenshots...")
-        
+        print(
+            f"   🎞️ Creating execution GIF from {len(self.screenshots)} screenshots..."
+        )
+
         images = []
         try:
             for screenshot in self.screenshots:
                 img = Image.open(screenshot)
                 # Resize for manageable file size if needed, keeping aspect ratio
-                # img.thumbnail((800, 800)) 
+                # img.thumbnail((800, 800))
                 images.append(img)
-            
+
             if images:
                 output_path = self.run_dir / "execution.gif"
                 # Duration is milliseconds per frame
@@ -61,9 +64,9 @@ class ReportGenerator:
                     output_path,
                     save_all=True,
                     append_images=images[1:],
-                    duration=1000, 
+                    duration=1000,
                     loop=0,
-                    optimize=True
+                    optimize=True,
                 )
                 print(f"   ✅ GIF saved to: {output_path}")
         except Exception as e:
@@ -72,15 +75,15 @@ class ReportGenerator:
     def _generate_html(self):
         """Create a standalone HTML report"""
         print("   📄 Creating HTML report...")
-        
+
         test_name = self.run_data.get("testName", "Unknown Test")
         status = self.run_data.get("finalState", "unknown").upper()
         duration = self.run_data.get("duration", 0)
         steps = self.run_data.get("steps", [])
-        
+
         # Determine status color
         status_color = "#10b981" if status == "PASSED" else "#ef4444"
-        
+
         html_content = f"""
 <!DOCTYPE html>
 <html lang="en">
@@ -148,7 +151,7 @@ class ReportGenerator:
         if gif_path.exists():
             # Read GIF as base64 to embed directly
             try:
-                gif_b64 = base64.b64encode(gif_path.read_bytes()).decode('utf-8')
+                gif_b64 = base64.b64encode(gif_path.read_bytes()).decode("utf-8")
                 html_content += f"""
         <div class="gif-container">
             <img src="data:image/gif;base64,{gif_b64}" alt="Execution Replay">
@@ -163,26 +166,26 @@ class ReportGenerator:
 """
 
         for i, step in enumerate(steps):
-            step_num = step.get("stepNumber", i+1)
+            step_num = step.get("stepNumber", i + 1)
             action = step.get("action", "UNKNOWN").upper()
             description = step.get("description", "")
             result = step.get("result", "unknown")
             error = step.get("error")
             target = step.get("target", "")
-            
+
             status_class = "status-success" if result == "success" else "status-failed"
-            
+
             # Find matching screenshot
             # Assuming linear mapping loosely, or we could match timestamps if we had them perfectly synced.
-            # Ideally steps should have a 'screenshot' field with filename. 
+            # Ideally steps should have a 'screenshot' field with filename.
             # operator.py doesn't strictly name screenshots by step yet, but let's try to match.
             # Operator prompt instructed: "Save screenshots to current directory"
             # It didn't enforce naming convention.
             # But usually they come out as screenshot_1.png etc. if agent follows instructions?
-            # Actually agent names them arbitrary. 
+            # Actually agent names them arbitrary.
             # We will just display ALL screenshots at the bottom or try to fuzzy match?
             # Let's keep it simple: no per-step screenshot embedding for now unless explicit.
-            
+
             html_content += f"""
             <li class="step open">
                 <div class="step-header" onclick="this.parentElement.classList.toggle('open')">
@@ -204,7 +207,7 @@ class ReportGenerator:
 </body>
 </html>
 """
-        
+
         output_file = self.run_dir / "report.html"
         output_file.write_text(html_content, encoding="utf-8")
         print(f"   ✅ Report saved to: {output_file}")
