@@ -78,109 +78,25 @@ class Operator:
         return run
 
     async def _execute_plan_interactive(self, plan: Dict, run_dir: str = None) -> Dict:
-        """Execute plan step-by-step with user confirmation"""
-        print(f"🤖 Interactive Execution: {plan.get('testName', 'Unnamed')}")
-        steps = plan.get('steps', [])
-        print(f"   Total steps: {len(steps)}")
+        """
+        Interactive Mode Wrapper.
+        
+        NOTE: True step-by-step execution with "Execute? [y/n]" is currently disabled because
+        the browser session resets between steps in the current architecture.
+        
+        Instead, we run the full plan after the user has reviewed/edited it in the CLI stage.
+        """
+        print("ℹ️  Interactive Mode: Step-by-step confirmation is disabled to maintain browser state.")
+        print("   Running full plan execution...")
         print()
 
-        import time
-        start_time = datetime.utcnow().isoformat() + "Z"
-        execution_start = time.time()
-        
-        executed_steps = []
-        failure_count = 0
-        success_count = 0
-        final_state = "passed"
-
-        for step in steps:
-            step_num = step.get('stepNumber')
-            action = step.get('action')
-            description = step.get('description')
-            
-            print(f"👉 Step {step_num}: {action.upper()} - {description}")
-            print(f"   Target: {step.get('target')}")
-            
-            # User Confirmation
-            while True:
-                response = input("   Execute this step? [Y/n/q] ").lower().strip()
-                if response in ['', 'y', 'yes']:
-                    break
-                elif response in ['n', 'no', 's', 'skip']:
-                    print(f"   Skipping step {step_num}...")
-                    continue  # This continues the while loop, asking again? No, we want to skip the step
-                    # Actually, if we skip, we should record it as skipped or just pass
-                elif response in ['q', 'quit']:
-                    print("   Quitting execution.")
-                    final_state = "aborted"
-                    break
-            
-            if response in ['q', 'quit']:
-                break
-                
-            if response in ['n', 'no', 's', 'skip']:
-                continue
-
-            # Execute single step
-            print("   Executing...")
-            step_prompt = self._build_single_step_prompt(step, plan, run_dir)
-            
-            try:
-                # We expect a partial run object back with just this step's result
-                step_result_run = await self._query_agent(step_prompt)
-                
-                # Extract the single step result
-                if step_result_run.get('steps'):
-                    result_step = step_result_run['steps'][0]
-                    executed_steps.append(result_step)
-                    
-                    status = result_step.get('result', 'unknown')
-                    print(f"   Result: {status.upper()}")
-                    if status != 'success':
-                        print(f"   Error: {result_step.get('error')}")
-                        failure_count += 1
-                        # Ask if we should continue on error
-                        if input("   Step failed. Continue? [y/N] ").lower().strip() not in ['y', 'yes']:
-                            final_state = "failed"
-                            break
-                    else:
-                        success_count += 1
-                else:
-                    print("   ⚠️ No result returned for step")
-            except Exception as e:
-                print(f"   ❌ Execution Error: {e}")
-                failure_count += 1
-                if input("   System error. Continue? [y/N] ").lower().strip() not in ['y', 'yes']:
-                    final_state = "failed"
-                    break
-            print()
-
-        duration = time.time() - execution_start
-
-        # Construct final run object
-        run = {
-            "testName": plan.get('testName'),
-            "startTime": start_time,
-            "endTime": datetime.utcnow().isoformat() + "Z",
-            "duration": duration,
-            "steps": executed_steps,
-            "finalState": final_state,
-            "summary": f"Interactive execution. Passed: {success_count}, Failed: {failure_count}",
-            "successCount": success_count,
-            "failureCount": failure_count
-        }
-        
-        print("✅ Interactive execution complete")
-        self._print_summary(run)
-        if run_dir:
-            self._move_artifacts(run_dir)
-            
-        return run
+        # Fallback to normal execution to keep browser open
+        return await self.execute_plan(plan, run_dir, interactive=False)
 
     def _build_single_step_prompt(self, step: Dict, plan: Dict, run_dir: str = None) -> str:
         """Build prompt for a single step execution"""
-        from datetime import datetime
-        start_time = datetime.utcnow().isoformat() + "Z"
+        from datetime import datetime, timezone
+        start_time = datetime.now(timezone.utc).isoformat()
         
         prompt = f"""You are a test execution expert. Execute ONLY this specific step using Playwright MCP tools.
 
@@ -272,7 +188,8 @@ OUTPUT FORMAT:
         import json
 
         # Get current timestamp for the agent
-        start_time = datetime.utcnow().isoformat() + "Z"
+        from datetime import timezone
+        start_time = datetime.now(timezone.utc).isoformat()
 
         prompt = f"""You are a test execution expert. Execute this test plan using Playwright MCP tools.
 
@@ -343,6 +260,7 @@ MUST DO:
 
     async def _query_agent(self, prompt: str) -> Dict:
         """Query the agent with Playwright MCP access"""
+        run = None
         try:
             async for message in query(
                 prompt=prompt,
@@ -356,7 +274,9 @@ MUST DO:
                     result = message.result
                     # Extract JSON from markdown
                     run = extract_json_from_markdown(result)
-                    return run
+                    # Do not break, consume remaining messages to allow clean exit
+            
+            return run
 
         except Exception as e:
             # Clean up the traceback for cleaner output
@@ -367,163 +287,7 @@ MUST DO:
             else:
                 raise RuntimeError(f"Failed to execute plan: {e}")
 
-    async def _execute_plan_interactive(self, plan: Dict, run_dir: str = None) -> Dict:
-        """Execute plan step-by-step with user confirmation"""
-        print(f"🤖 Interactive Execution: {plan.get('testName', 'Unnamed')}")
-        steps = plan.get('steps', [])
-        print(f"   Total steps: {len(steps)}")
-        print()
 
-        import time
-        start_time = datetime.utcnow().isoformat() + "Z"
-        execution_start = time.time()
-        
-        executed_steps = []
-        failure_count = 0
-        success_count = 0
-        final_state = "passed"
-
-        for step in steps:
-            step_num = step.get('stepNumber')
-            action = step.get('action')
-            description = step.get('description')
-            
-            print(f"👉 Step {step_num}: {action.upper()} - {description}")
-            print(f"   Target: {step.get('target')}")
-            
-            while True:
-                response = input("   Execute this step? [Y/n/q] ").lower().strip()
-                if response in ['', 'y', 'yes']:
-                    break
-                elif response in ['n', 'no', 's', 'skip']:
-                    print(f"   Skipping step {step_num}...")
-                    break
-                elif response in ['q', 'quit']:
-                    print("   Quitting execution.")
-                    final_state = "aborted"
-                    break
-            
-            if response in ['q', 'quit']:
-                break
-            if response in ['n', 'no', 's', 'skip']:
-                continue
-
-            print("   Executing...")
-            step_prompt = self._build_single_step_prompt(step, plan, run_dir)
-            
-            try:
-                step_result_run = await self._query_agent(step_prompt)
-                
-                if step_result_run.get('steps'):
-                    result_step = step_result_run['steps'][0]
-                    executed_steps.append(result_step)
-                    
-                    status = result_step.get('result', 'unknown')
-                    print(f"   Result: {status.upper()}")
-                    if status != 'success':
-                        print(f"   Error: {result_step.get('error')}")
-                        failure_count += 1
-                        if input("   Step failed. Continue? [y/N] ").lower().strip() not in ['y', 'yes']:
-                            final_state = "failed"
-                            break
-                    else:
-                        success_count += 1
-                else:
-                    print("   ⚠️ No result returned for step")
-            except Exception as e:
-                print(f"   ❌ Execution Error: {e}")
-                failure_count += 1
-                if input("   System error. Continue? [y/N] ").lower().strip() not in ['y', 'yes']:
-                    final_state = "failed"
-                    break
-            print()
-
-        duration = time.time() - execution_start
-
-        run = {
-            "testName": plan.get('testName'),
-            "startTime": start_time,
-            "endTime": datetime.utcnow().isoformat() + "Z",
-            "duration": duration,
-            "steps": executed_steps,
-            "finalState": final_state,
-            "summary": f"Interactive execution. Passed: {success_count}, Failed: {failure_count}",
-            "successCount": success_count,
-            "failureCount": failure_count
-        }
-        
-        print("✅ Interactive execution complete")
-        self._print_summary(run)
-        if run_dir:
-            self._move_artifacts(run_dir)
-        return run
-
-    def _build_single_step_prompt(self, step: Dict, plan: Dict, run_dir: str = None) -> str:
-        """Build prompt for a single step execution"""
-        from datetime import datetime
-        start_time = datetime.utcnow().isoformat() + "Z"
-        
-        prompt = f'''You are a test execution expert. Execute ONLY this specific step using Playwright MCP tools.
-
-STEP TO EXECUTE:
-Action: {step.get('action')}
-Target: {step.get('target')}
-Description: {step.get('description')}
-Context: Test "{plan.get('testName')}"
-
-CRITICAL INSTRUCTIONS:
-1. Execute ONLY this action.
-2. Verify the action succeeded.
-3. Output result as JSON.
-
-OUTPUT FORMAT:
-```json
-{{
-  "steps": [
-    {{
-      "stepNumber": {step.get('stepNumber')},
-      "action": "{step.get('action')}",
-      "target": "{step.get('target')}",
-      "selector": "actual selector used",
-      "selectorType": "css/text/role",
-      "snapshot": null,
-      "result": "success",
-      "error": null,
-      "screenshot": null,
-      "timestamp": "{start_time}",
-      "details": "Execution details",
-      "description": "{step.get('description')}"
-    }}
-  ],
-  "finalState": "passed",
-  "successCount": 1,
-  "failureCount": 0
-}}
-```
-'''
-        if run_dir:
-            prompt += f"\\nSave screenshots to current directory."
-        return prompt
-
-    def _print_summary(self, run: Dict):
-        success_count = run.get("successCount", 0)
-        failure_count = run.get("failureCount", 0)
-        final_state = run.get("finalState", "unknown")
-
-        print(f"✅ Execution complete: {{final_state.upper()}}")
-        print(f"   ✅ Passed: {{success_count}}")
-        if failure_count > 0:
-            print(f"   ❌ Failed: {{failure_count}}")
-
-    def _move_artifacts(self, run_dir: str):
-        import shutil
-        for file in os.listdir("."):
-            if file.endswith(".png"):
-                try:
-                    shutil.move(file, os.path.join(run_dir, file))
-                    print(f"📦 Moved {{file}} to {{run_dir}}")
-                except Exception as e:
-                    print(f"⚠️ Failed to move {{file}}: {{e}}")
 
 
 # Convenience function for testing
