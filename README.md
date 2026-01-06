@@ -22,11 +22,26 @@ This automated pipeline transforms markdown-based test descriptions into executa
 
 ## 🚀 Usage
 
-### Web UI (Recommended)
-Launch the full dashboard to manage your tests visually:
+### ⚡️ Smart Run & Self-Healing
+
+The agent now checks for existing generated code before starting a new run.
+- **Reuse**: If valid code exists for a spec, it is run immediately (Stage 0).
+- **Heal**: If the existing code fails, the agent attempts to "heal" (debug and fix) it instead of regenerating from scratch.
+- **Regenerate**: Full regeneration only happens if healing fails or no code exists.
+
+### 📊 Web Dashboard
+
+A Next.js-based dashboard is available to manage specs and runs.
+
 ```bash
 ./start-ui.sh
 ```
+
+Features:
+- **Spec Management**: View and create test specifications.
+- **Run History**: detailed logs, execution plans, and generated code.
+- **Live Logs**: Watch test execution in real-time.
+- **Syntax Highlighting**: Beautiful code display for Specs and Tests.
 Access the dashboard at [http://localhost:3000](http://localhost:3000).
 
 ### CLI Execution
