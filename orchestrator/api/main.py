@@ -1,4 +1,5 @@
 from fastapi import FastAPI, HTTPException, BackgroundTasks
+from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
 import json
@@ -11,7 +12,12 @@ from typing import List
 from pydantic import BaseModel
 from .models import TestSpec, TestRun, CreateSpecRequest, UpdateSpecRequest
 
+BASE_DIR = Path(__file__).resolve().parent.parent.parent
+SPECS_DIR = BASE_DIR / "specs"
+RUNS_DIR = BASE_DIR / "runs"
+
 app = FastAPI(title="Playwright Agent API")
+app.mount("/artifacts", StaticFiles(directory=RUNS_DIR), name="artifacts")
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,10 +26,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-SPECS_DIR = BASE_DIR / "specs"
-RUNS_DIR = BASE_DIR / "runs"
 
 @app.get("/stats")
 def get_stats():
@@ -229,6 +231,22 @@ def get_run(id: str):
     if execution_log.exists():
         data["log"] = execution_log.read_text()
         
+    # List artifacts
+    artifacts = []
+    test_results_dir = run_dir / "test-results"
+    if test_results_dir.exists():
+        for f in test_results_dir.glob("**/*"):
+            if f.suffix in [".png", ".webm"]:
+                # relative path from RUNS_DIR for serving via /artifacts
+                # e.g. artifacts/run_id/test-results/test-1/image.png
+                rel_path = f.relative_to(RUNS_DIR)
+                artifacts.append({
+                    "name": f.name,
+                    "path": f"/artifacts/{rel_path}",
+                    "type": "image" if f.suffix == ".png" else "video"
+                })
+    data["artifacts"] = artifacts
+    
     return data
 
 def execute_run_task(spec_path: str, run_dir: str, try_code_path: str = None):

@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { ArrowLeft, CheckCircle, XCircle, PlayCircle, AlertCircle, FileText, Layout, Code, Copy, Check } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, PlayCircle, AlertCircle, FileText, Layout, Code, Copy, Check, Image as ImageIcon, Video as VideoIcon } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -152,6 +152,38 @@ export default function RunDetailPage() {
                             {data.log || 'No logs available.'}
                         </div>
                     </section>
+
+                    {data.artifacts && data.artifacts.length > 0 && (
+                        <section className="card">
+                            <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                <ImageIcon size={20} /> Artifacts
+                            </h2>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1rem' }}>
+                                {data.artifacts.map((art: any, i: number) => (
+                                    <div key={i} style={{ borderRadius: 'var(--radius)', overflow: 'hidden', background: '#0d1117' }}>
+                                        {art.type === 'image' ? (
+                                            <a href={`http://127.0.0.1:8001${art.path}`} target="_blank" rel="noreferrer">
+                                                <img
+                                                    src={`http://127.0.0.1:8001${art.path}`}
+                                                    alt={art.name}
+                                                    style={{ width: '100%', aspectRatio: '16/9', objectFit: 'cover' }}
+                                                />
+                                            </a>
+                                        ) : (
+                                            <video
+                                                controls
+                                                src={`http://127.0.0.1:8001${art.path}`}
+                                                style={{ width: '100%' }}
+                                            />
+                                        )}
+                                        <div style={{ padding: '0.5rem', fontSize: '0.8rem', color: '#8b949e', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                            {art.name}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </section>
+                    )}
 
                 </div>
 

@@ -54,8 +54,9 @@ class Validator:
             print(f"{'='*80}\n")
 
             # Run the test
+            # Run the test
             print("🚀 Running test...")
-            result = await self._run_test(test_file)
+            result = await self._run_test(test_file, output_dir)
 
             if result.get("passed"):
                 print("✅ Test passed!")
@@ -117,13 +118,18 @@ class Validator:
 
         return validation_result
 
-    async def _run_test(self, test_file: str) -> Dict:
+    async def _run_test(self, test_file: str, output_dir: str = None) -> Dict:
         """Run a Playwright test and return the result"""
         import subprocess
 
         try:
+            cmd = f"npx playwright test '{test_file}'"
+            if output_dir:
+                results_dir = Path(output_dir) / "test-results"
+                cmd = f"PLAYWRIGHT_OUTPUT_DIR='{results_dir}' {cmd}"
+
             result = subprocess.run(
-                f"npx playwright test '{test_file}'",
+                cmd,
                 shell=True,
                 capture_output=True,
                 text=True,

@@ -162,7 +162,8 @@ def main():
             (run_dir / "plan.json").write_text(json.dumps(plan_data, indent=2))
             
             # Run the test
-            cmd = f"npx playwright test '{code_path}'"
+            output_dir = run_dir / "test-results"
+            cmd = f"PLAYWRIGHT_OUTPUT_DIR='{output_dir}' npx playwright test '{code_path}'"
             print(f"   Executing: {cmd}")
             sys.stdout.flush() 
             
