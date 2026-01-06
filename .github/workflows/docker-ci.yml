@@ -21,13 +21,21 @@ jobs:
 
       - name: Run Smoke Test (Self-Healing)
         env:
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ANTHROPIC_AUTH_TOKEN: ${{ secrets.ANTHROPIC_AUTH_TOKEN }}
+          ANTHROPIC_BASE_URL: ${{ secrets.ANTHROPIC_BASE_URL }}
+          ANTHROPIC_DEFAULT_HAIKU_MODEL: glm-4.5-air
+          ANTHROPIC_DEFAULT_SONNET_MODEL: glm-4.7
+          ANTHROPIC_DEFAULT_OPUS_MODEL: glm-4.7
         run: |
           mkdir -p runs
           # Run the container with the API key mapping and volume mount
           # We use --ipc=host to avoid memory issues with Chrome in Docker but Playwright recommended defaults usually work
           docker run --rm \
-            -e ANTHROPIC_API_KEY \
+            -e ANTHROPIC_AUTH_TOKEN \
+            -e ANTHROPIC_BASE_URL \
+            -e ANTHROPIC_DEFAULT_HAIKU_MODEL \
+            -e ANTHROPIC_DEFAULT_SONNET_MODEL \
+            -e ANTHROPIC_DEFAULT_OPUS_MODEL \
             -v ${{ github.workspace }}/runs:/app/runs \
             playwright-agent specs/smoke_healing.md
 
