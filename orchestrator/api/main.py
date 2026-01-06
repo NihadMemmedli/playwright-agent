@@ -11,12 +11,18 @@ import os
 from typing import List
 from pydantic import BaseModel
 from .models import TestSpec, TestRun, CreateSpecRequest, UpdateSpecRequest
+from .dashboard import get_dashboard_stats
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 SPECS_DIR = BASE_DIR / "specs"
 RUNS_DIR = BASE_DIR / "runs"
 
 app = FastAPI(title="Playwright Agent API")
+
+@app.get("/dashboard")
+def get_dashboard():
+    return get_dashboard_stats(RUNS_DIR)
+
 app.mount("/artifacts", StaticFiles(directory=RUNS_DIR), name="artifacts")
 
 app.add_middleware(

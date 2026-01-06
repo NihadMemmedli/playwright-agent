@@ -122,7 +122,7 @@ export default function SpecsPage() {
                         className="btn-icon"
                         title="Run Spec"
                         onClick={(e) => node.spec && runTest(node.spec.name, e)}
-                        style={{ padding: '4px', color: 'var(--success)' }}
+                        style={{ padding: '4px', color: 'var(--primary)' }}
                     >
                         <Play size={14} />
                     </button>

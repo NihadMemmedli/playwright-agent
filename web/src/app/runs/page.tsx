@@ -31,19 +31,37 @@ export default function RunsPage() {
 
     const getStatusIcon = (status: string) => {
         switch (status) {
-            case 'completed': return <CheckCircle size={20} color="var(--success)" />;
-            case 'failed': return <XCircle size={20} color="var(--danger)" />;
-            case 'in_progress': return <PlayCircle size={20} color="var(--primary)" />;
+            case 'completed':
+            case 'passed':
+            case 'success':
+                return <CheckCircle size={20} color="var(--success)" />;
+            case 'failed':
+            case 'failure':
+                return <XCircle size={20} color="var(--danger)" />;
+            case 'in_progress':
+            case 'running':
+                return <PlayCircle size={20} color="var(--primary)" />;
+            case 'pending':
+                return <Clock size={20} color="var(--text-secondary)" />;
             default: return <AlertCircle size={20} color="var(--text-secondary)" />;
         }
     };
 
     const getStatusBadge = (status: string) => {
         switch (status) {
-            case 'completed': return <span className="badge badge-success">Completed</span>;
-            case 'failed': return <span className="badge badge-danger">Failed</span>;
-            case 'in_progress': return <span className="badge" style={{ background: 'rgba(59,130,246,0.2)', color: 'var(--primary)' }}>Running</span>;
-            default: return <span className="badge" style={{ background: 'rgba(148,163,184,0.2)', color: 'var(--text-secondary)' }}>{status}</span>;
+            case 'completed':
+            case 'passed':
+            case 'success':
+                return <span className="badge badge-success">Passed</span>;
+            case 'failed':
+            case 'failure':
+                return <span className="badge badge-danger">Failed</span>;
+            case 'in_progress':
+            case 'running':
+                return <span className="badge badge-primary">Running</span>;
+            case 'pending':
+                return <span className="badge badge-secondary">Pending</span>;
+            default: return <span className="badge badge-secondary">{status}</span>;
         }
     };
 
@@ -70,12 +88,12 @@ export default function RunsPage() {
                                     {getStatusIcon(run.status)}
                                 </div>
                                 <div>
-                                    <h3 style={{ fontWeight: 600 }}>{run.test_name || 'Unknown Test'}</h3>
-                                    <div style={{ display: 'flex', gap: '1rem', fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                                    <h3 style={{ fontWeight: 600, fontSize: '1rem' }}>{run.test_name || 'Unknown Test'}</h3>
+                                    <div style={{ display: 'flex', gap: '1rem', fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
                                         <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
                                             <Clock size={14} /> {run.timestamp}
                                         </span>
-                                        <span>ID: {run.id}</span>
+                                        <span style={{ fontFamily: 'var(--font-mono)' }}>ID: {run.id}</span>
                                     </div>
                                 </div>
                             </div>

@@ -78,7 +78,7 @@ export default function SpecDetailPage() {
 
     return (
         <div className="container">
-            <Link href="/specs" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem', color: 'var(--text-secondary)' }}>
+            <Link href="/specs" className="link-hover" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem', color: 'var(--text-secondary)' }}>
                 <ArrowLeft size={16} /> Back to Specs
             </Link>
 
@@ -89,18 +89,18 @@ export default function SpecDetailPage() {
                 </div>
                 <div style={{ display: 'flex', gap: '1rem' }}>
                     {isEditing && (
-                        <button className="btn" onClick={handleSave} disabled={saving} style={{ background: 'var(--primary)', color: 'white' }}>
+                        <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
                             {saving ? 'Saving...' : <><Save size={18} /> Save</>}
                         </button>
                     )}
-                    <button className="btn" onClick={() => {
+                    <button className="btn btn-secondary" onClick={() => {
                         if (isEditing) {
                             setContent(originalContent); // Reset
                             setIsEditing(false);
                         } else {
                             setIsEditing(true);
                         }
-                    }} style={{ background: 'var(--surface)' }}>
+                    }}>
                         {isEditing ? 'Cancel' : <><Edit size={18} /> Edit</>}
                     </button>
                     <button className="btn btn-primary" onClick={runTest}>
@@ -110,7 +110,7 @@ export default function SpecDetailPage() {
             </header>
 
             <div className="card" style={{ height: 'calc(100vh - 250px)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                <div style={{ flex: 1, overflow: 'auto', background: '#0d1117', borderRadius: 'var(--radius)' }}>
+                <div style={{ flex: 1, overflow: 'auto', background: 'var(--code-bg)', borderRadius: 'var(--radius)' }}>
                     {isEditing ? (
                         <textarea
                             value={content}
@@ -118,11 +118,11 @@ export default function SpecDetailPage() {
                             style={{
                                 width: '100%',
                                 height: '100%',
-                                background: '#0d1117',
+                                background: 'var(--code-bg)',
                                 color: '#e6edf3',
                                 border: 'none',
                                 padding: '1.5rem',
-                                fontFamily: 'monospace',
+                                fontFamily: 'var(--font-mono)',
                                 fontSize: '0.9rem',
                                 resize: 'none',
                                 outline: 'none'
@@ -132,7 +132,7 @@ export default function SpecDetailPage() {
                         <SyntaxHighlighter
                             language="markdown"
                             style={vscDarkPlus}
-                            customStyle={{ margin: 0, padding: '1.5rem', fontSize: '0.9rem', background: '#0d1117', minHeight: '100%' }}
+                            customStyle={{ margin: 0, padding: '1.5rem', fontSize: '0.9rem', background: 'var(--code-bg)', minHeight: '100%' }}
                             showLineNumbers={true}
                             wrapLines={true}
                         >

@@ -1,5 +1,5 @@
 'use client';
-import { Home, FileText, Play, Settings, Bot } from 'lucide-react';
+import { Home, FileText, Play, Settings, Bot, BarChart2 } from 'lucide-react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
@@ -7,7 +7,8 @@ export function Sidebar() {
     const pathname = usePathname();
 
     const links = [
-        { href: '/', label: 'Dasboard', icon: Home },
+        { href: '/', label: 'Overview', icon: Home },
+        { href: '/dashboard', label: 'Reporting', icon: BarChart2 },
         { href: '/specs', label: 'Test Specs', icon: FileText },
         { href: '/runs', label: 'Test Runs', icon: Play },
     ];
