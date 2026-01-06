@@ -253,6 +253,11 @@ def get_run(id: str):
                 })
     data["artifacts"] = artifacts
     
+    # Check for HTML Report
+    report_index = run_dir / "report" / "index.html"
+    if report_index.exists():
+        data["report_url"] = f"/artifacts/{id}/report/index.html"
+
     return data
 
 def execute_run_task(spec_path: str, run_dir: str, try_code_path: str = None):

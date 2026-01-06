@@ -12,7 +12,7 @@ cd orchestrator
 if [ -d "venv" ]; then
     source venv/bin/activate
 fi
-uvicorn api.main:app --host 0.0.0.0 --port 8001 > ../api.log 2>&1 &
+uvicorn api.main:app --host 0.0.0.0 --port 8001 --reload > ../api.log 2>&1 &
 BACKEND_PID=$!
 cd ..
 

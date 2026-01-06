@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { ArrowLeft, CheckCircle, XCircle, PlayCircle, AlertCircle, FileText, Layout, Code, Copy, Check, Image as ImageIcon, Video as VideoIcon } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, PlayCircle, AlertCircle, FileText, Layout, Code, Copy, Check, Image as ImageIcon, Video as VideoIcon, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -210,6 +210,18 @@ export default function RunDetailPage() {
                                 </div>
                             </li>
                         </ul>
+
+                        {data.report_url && (
+                            <a
+                                href={`http://127.0.0.1:8001${data.report_url}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="btn btn-primary"
+                                style={{ marginTop: '1.5rem', width: '100%', justifyContent: 'center' }}
+                            >
+                                <ExternalLink size={16} /> View HTML Report
+                            </a>
+                        )}
                     </section>
                 </div>
             </div>

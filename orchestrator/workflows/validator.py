@@ -123,10 +123,11 @@ class Validator:
         import subprocess
 
         try:
-            cmd = f"npx playwright test '{test_file}'"
+            cmd = f"npx playwright test '{test_file}' --reporter=list,html"
             if output_dir:
                 results_dir = Path(output_dir) / "test-results"
-                cmd = f"PLAYWRIGHT_OUTPUT_DIR='{results_dir}' {cmd}"
+                report_dir = Path(output_dir) / "report"
+                cmd = f"PLAYWRIGHT_OUTPUT_DIR='{results_dir}' PLAYWRIGHT_HTML_REPORT='{report_dir}' {cmd}"
 
             result = subprocess.run(
                 cmd,
