@@ -1,6 +1,6 @@
 'use client';
-import { useState, useEffect } from 'react';
-import { FileText, Plus, Play } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { FileText, Plus, Play, Folder, FolderOpen, ChevronRight, ChevronDown } from 'lucide-react';
 import Link from 'next/link';
 
 interface Spec {
@@ -9,11 +9,19 @@ interface Spec {
     content: string;
 }
 
+interface TreeNode {
+    name: string;
+    path: string; // Full relative path for file, or folder path
+    type: 'file' | 'folder';
+    children?: Record<string, TreeNode>;
+    spec?: Spec; // Only for files
+}
+
 export default function SpecsPage() {
     const [specs, setSpecs] = useState<Spec[]>([]);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
-    const [groupedSpecs, setGroupedSpecs] = useState<Record<string, Spec[]>>({});
+    const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 
     useEffect(() => {
         fetch('http://127.0.0.1:8001/specs')
@@ -21,6 +29,13 @@ export default function SpecsPage() {
             .then(data => {
                 setSpecs(data);
                 setLoading(false);
+                // Auto-expand top level by default
+                const topLevelFolders = new Set<string>();
+                data.forEach((s: Spec) => {
+                    const parts = s.name.split('/');
+                    if (parts.length > 1) topLevelFolders.add(parts[0]);
+                });
+                setExpandedFolders(topLevelFolders);
             })
             .catch(err => {
                 console.error(err);
@@ -28,27 +43,16 @@ export default function SpecsPage() {
             });
     }, []);
 
-    useEffect(() => {
-        if (!specs.length) return;
+    const toggleFolder = (path: string) => {
+        const next = new Set(expandedFolders);
+        if (next.has(path)) next.delete(path);
+        else next.add(path);
+        setExpandedFolders(next);
+    };
 
-        // Filter
-        const filtered = specs.filter(s =>
-            s.name.toLowerCase().includes(searchTerm.toLowerCase())
-        );
-
-        // Group
-        const groups: Record<string, Spec[]> = {};
-        filtered.forEach(spec => {
-            const parts = spec.name.split('/');
-            const folder = parts.length > 1 ? parts.slice(0, -1).join('/') : 'Root';
-            if (!groups[folder]) groups[folder] = [];
-            groups[folder].push(spec);
-        });
-
-        setGroupedSpecs(groups);
-    }, [specs, searchTerm]);
-
-    const runTest = async (specName: string) => {
+    const runTest = async (specName: string, e: React.MouseEvent) => {
+        e.preventDefault();
+        e.stopPropagation();
         try {
             const res = await fetch('http://127.0.0.1:8001/runs', {
                 method: 'POST',
@@ -62,6 +66,108 @@ export default function SpecsPage() {
         } catch (e) {
             alert('Failed to start run');
         }
+    };
+
+    // Filter and Build Tree
+    const tree = useMemo(() => {
+        const root: Record<string, TreeNode> = {};
+
+        specs.filter(s => s.name.toLowerCase().includes(searchTerm.toLowerCase())).forEach(spec => {
+            const parts = spec.name.split('/');
+            let currentLevel = root;
+
+            parts.forEach((part, index) => {
+                const isFile = index === parts.length - 1;
+                const path = parts.slice(0, index + 1).join('/');
+
+                if (!currentLevel[part]) {
+                    currentLevel[part] = {
+                        name: part,
+                        path: path,
+                        type: isFile ? 'file' : 'folder',
+                        children: isFile ? undefined : {},
+                        spec: isFile ? spec : undefined
+                    };
+                }
+
+                if (!isFile && currentLevel[part].children) {
+                    currentLevel = currentLevel[part].children!;
+                }
+            });
+        });
+
+        return root;
+    }, [specs, searchTerm]);
+
+    const renderNode = (node: TreeNode, depth: number = 0) => {
+        const isExpanded = expandedFolders.has(node.path) || searchTerm.length > 0; // Auto expand on search
+
+        if (node.type === 'file') {
+            return (
+                <div key={node.path} style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.5rem 0.75rem',
+                    paddingLeft: `${depth * 1.5 + 0.75}rem`,
+                    borderBottom: '1px solid var(--border)',
+                    background: 'var(--surface)',
+                    fontSize: '0.9rem'
+                }}>
+                    <Link href={`/specs/${node.spec?.name}`} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none', color: 'inherit', flex: 1 }}>
+                        <FileText size={16} color="var(--primary)" />
+                        <span>{node.name}</span>
+                    </Link>
+                    <button
+                        className="btn-icon"
+                        title="Run Spec"
+                        onClick={(e) => node.spec && runTest(node.spec.name, e)}
+                        style={{ padding: '4px', color: 'var(--success)' }}
+                    >
+                        <Play size={14} />
+                    </button>
+                </div>
+            );
+        }
+
+        return (
+            <div key={node.path}>
+                <div
+                    onClick={() => toggleFolder(node.path)}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.5rem',
+                        padding: '0.5rem 0.75rem',
+                        paddingLeft: `${depth * 1.5}rem`,
+                        cursor: 'pointer',
+                        userSelect: 'none',
+                        color: 'var(--text-secondary)',
+                        fontWeight: 600,
+                        fontSize: '0.85rem',
+                        letterSpacing: '0.05em',
+                        textTransform: 'uppercase',
+                        borderBottom: '1px solid var(--border)'
+                    }}
+                >
+                    {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    {isExpanded ? <FolderOpen size={16} /> : <Folder size={16} />}
+                    {node.name}
+                </div>
+                {isExpanded && node.children && (
+                    <div>
+                        {Object.values(node.children)
+                            .sort((a, b) => {
+                                // Folders first, then files
+                                if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+                                return a.name.localeCompare(b.name);
+                            })
+                            .map(child => renderNode(child, depth + 1))
+                        }
+                    </div>
+                )}
+            </div>
+        );
     };
 
     return (
@@ -104,70 +210,19 @@ export default function SpecsPage() {
             {loading ? (
                 <p>Loading specs...</p>
             ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-                    {Object.keys(groupedSpecs).length === 0 && (
-                        <div className="card" style={{ textAlign: 'center', padding: '4rem 2rem' }}>
-                            <p style={{ color: 'var(--text-secondary)' }}>No specs found.</p>
+                <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
+                    {Object.keys(tree).length === 0 && (
+                        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                            No specs found.
                         </div>
                     )}
 
-                    {Object.entries(groupedSpecs).sort().map(([folder, folderSpecs]) => (
-                        <div key={folder}>
-                            {folder !== 'Root' && (
-                                <h3 style={{
-                                    textTransform: 'uppercase',
-                                    fontSize: '0.8rem',
-                                    letterSpacing: '0.05em',
-                                    color: 'var(--text-secondary)',
-                                    marginBottom: '1rem',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem'
-                                }}>
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
-                                    {folder}
-                                </h3>
-                            )}
-
-                            <div style={{ display: 'grid', gap: '1rem' }}>
-                                {folderSpecs.map(spec => (
-                                    <div key={spec.name} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                                            <div style={{
-                                                width: '40px', height: '40px',
-                                                background: 'rgba(59, 130, 246, 0.1)',
-                                                borderRadius: '8px',
-                                                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                                color: 'var(--primary)'
-                                            }}>
-                                                <FileText size={20} />
-                                            </div>
-                                            <div>
-                                                <h3 style={{ fontWeight: 600 }}>
-                                                    <Link href={`/specs/${spec.name}`} style={{ textDecoration: 'none', color: 'inherit' }}>
-                                                        {spec.name.split('/').pop()}
-                                                    </Link>
-                                                </h3>
-                                                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
-                                                    {spec.path}
-                                                </p>
-                                            </div>
-                                        </div>
-                                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                            <button
-                                                className="btn"
-                                                style={{ background: 'rgba(16, 185, 129, 0.1)', color: 'var(--success)' }}
-                                                onClick={() => runTest(spec.name)}
-                                            >
-                                                <Play size={16} />
-                                                Run
-                                            </button>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ))}
+                    {Object.values(tree)
+                        .sort((a, b) => {
+                            if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+                            return a.name.localeCompare(b.name);
+                        })
+                        .map(node => renderNode(node))}
                 </div>
             )}
         </div>
