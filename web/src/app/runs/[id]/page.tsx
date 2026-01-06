@@ -46,6 +46,25 @@ export default function RunDetailPage() {
                         {data.run?.finalState || 'Unknown Status'}
                     </div>
                 </div>
+
+                {data.run?.notes?.some((note: string) => note.includes('Reused existing code')) && (
+                    <div style={{
+                        marginTop: '1.5rem',
+                        padding: '1rem',
+                        background: 'rgba(46, 160, 67, 0.15)',
+                        border: '1px solid rgba(46, 160, 67, 0.4)',
+                        borderRadius: 'var(--radius)',
+                        color: '#3fb950',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0.75rem'
+                    }}>
+                        <CheckCircle size={20} />
+                        <div>
+                            <strong>Smart Run Active:</strong> We found an existing generated test for this spec and reused it.
+                        </div>
+                    </div>
+                )}
             </header>
 
             <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '2rem' }}>
@@ -77,7 +96,7 @@ export default function RunDetailPage() {
                         <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <Code size={20} /> Generated Code
                         </h2>
-                        {data.export?.testFilePath ? (
+                        {data.export?.testFilePath && (
                             <div>
                                 <p style={{ marginBottom: '1rem' }}>Generated file: <code style={{ background: 'rgba(0,0,0,0.3)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>{data.export.testFilePath}</code></p>
                                 <div style={{
@@ -95,9 +114,26 @@ export default function RunDetailPage() {
                                     </SyntaxHighlighter>
                                 </div>
                             </div>
-                        ) : (
-                            <p style={{ color: 'var(--text-secondary)' }}>No code generated yet.</p>
                         )}
+                    </section>
+
+                    <section className="card">
+                        <h2 style={{ fontSize: '1.2rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <FileText size={20} /> Execution Log
+                        </h2>
+                        <div style={{
+                            background: '#0d1117',
+                            padding: '1rem',
+                            borderRadius: 'var(--radius)',
+                            maxHeight: '400px',
+                            overflow: 'auto',
+                            fontFamily: 'monospace',
+                            fontSize: '0.85rem',
+                            whiteSpace: 'pre-wrap',
+                            color: '#e6edf3'
+                        }}>
+                            {data.log || 'No logs available.'}
+                        </div>
                     </section>
 
                 </div>

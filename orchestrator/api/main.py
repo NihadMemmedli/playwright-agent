@@ -212,12 +212,19 @@ def get_run(id: str):
     if validation_file.exists():
         data["validation"] = json.loads(validation_file.read_text())
         
+    execution_log = run_dir / "execution.log"
+    if execution_log.exists():
+        data["log"] = execution_log.read_text()
+        
     return data
 
-def execute_run_task(spec_path: str, run_dir: str):
+def execute_run_task(spec_path: str, run_dir: str, try_code_path: str = None):
     # Run the CLI
     # We use python from current environment
     cmd = [sys.executable, "orchestrator/cli.py", spec_path, "--run-dir", run_dir]
+    
+    if try_code_path:
+        cmd.extend(["--try-code", try_code_path])
     
     # We can write stdout to a log file
     log_file = Path(run_dir) / "execution.log"
@@ -239,10 +246,80 @@ def create_run(request: RunRequest, background_tasks: BackgroundTasks):
     run_dir = RUNS_DIR / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     
+    # Optimistic: Check for existing code to try
+    try_code_path = None
+    
+    # Extract Test Name from Spec for legacy matching
+    spec_content = spec_path.read_text()
+    spec_test_name = None
+    for line in spec_content.splitlines():
+        if line.startswith("# "):
+            spec_test_name = line.replace("# ", "").replace("Test:", "").strip()
+            break
+            
+    # 1. Search previous runs for this spec
+    if RUNS_DIR.exists():
+        # Get all subdirectories sorted by newest first
+        run_dirs = sorted([d for d in RUNS_DIR.iterdir() if d.is_dir()], 
+                         key=lambda x: os.path.getmtime(x), reverse=True)
+        
+        for r_dir in run_dirs:
+            plan_file = r_dir / "plan.json"
+            export_file = r_dir / "export.json"
+            
+            if plan_file.exists() and export_file.exists():
+                try:
+                    plan = json.loads(plan_file.read_text())
+                    
+                    match = False
+                    # Check 1: Exact Spec Filename (New runs)
+                    if plan.get("specFileName") == request.spec_name:
+                        match = True
+                    # Check 2: Test Name Matching (Legacy runs)
+                    elif spec_test_name and plan.get("testName"):
+                        # Normalize for comparison
+                        t1 = plan.get("testName").lower().strip()
+                        t2 = spec_test_name.lower().strip()
+                        if t1 == t2 or t1 in t2 or t2 in t1:
+                            match = True
+                            
+                    if match:
+                         export = json.loads(export_file.read_text())
+                         path_str = export.get("testFilePath")
+                         if path_str:
+                             candidate = BASE_DIR / path_str
+                             # Handle relative paths from run dir
+                             if not candidate.exists():
+                                 candidate = r_dir / path_str
+                                 
+                             if candidate.exists():
+                                 try_code_path = str(candidate)
+                                 break
+                except:
+                    pass
+        
+    # 2. Key heuristic: Check typical generated file path if not found in runs
+    if not try_code_path:
+        # e.g. "simple_navigation.md" -> "simple-navigation.spec.ts"
+        # We try a few variations
+        stem = spec_path.stem # simple_navigation
+        
+        candidates = [
+            f"tests/generated/{stem}.spec.ts",
+            f"tests/generated/{stem.replace('_', '-')}.spec.ts",
+             # Also try the directory scan if we really want to be sure
+        ]
+        
+        for cand_str in candidates:
+            cand_path = BASE_DIR / cand_str
+            if cand_path.exists():
+                try_code_path = str(cand_path)
+                break
+
     # Log initial status
     (run_dir / "status.txt").write_text("pending")
     
     # Trigger execution
-    background_tasks.add_task(execute_run_task, str(spec_path), str(run_dir))
+    background_tasks.add_task(execute_run_task, str(spec_path), str(run_dir), try_code_path)
     
     return {"status": "started", "id": run_id}
