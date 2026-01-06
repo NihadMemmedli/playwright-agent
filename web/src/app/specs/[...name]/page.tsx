@@ -9,9 +9,11 @@ import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 export default function SpecDetailPage() {
     const params = useParams();
     const router = useRouter();
-    const name = params?.name as string;
-    // Decode name if it was URL encoded (though nextjs usually handles this)
-    const decodedName = decodeURIComponent(name);
+
+    // Handle catch-all params which come as an array
+    const nameParam = params?.name;
+    const rawName = Array.isArray(nameParam) ? nameParam.join('/') : (nameParam as string);
+    const decodedName = decodeURIComponent(rawName || '');
 
     const [content, setContent] = useState('');
     const [originalContent, setOriginalContent] = useState('');
@@ -20,8 +22,8 @@ export default function SpecDetailPage() {
     const [isEditing, setIsEditing] = useState(false);
 
     useEffect(() => {
-        if (!name) return;
-        fetch(`http://127.0.0.1:8001/specs/${name}`)
+        if (!decodedName) return;
+        fetch(`http://127.0.0.1:8001/specs/${decodedName}`)
             .then(res => res.json())
             .then(data => {
                 setContent(data.content);
@@ -32,7 +34,7 @@ export default function SpecDetailPage() {
                 console.error(err);
                 setLoading(false);
             });
-    }, [name]);
+    }, [decodedName]);
 
     const handleSave = async () => {
         setSaving(true);

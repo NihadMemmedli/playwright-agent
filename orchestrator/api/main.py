@@ -30,7 +30,7 @@ def get_stats():
     # Count specs
     spec_count = 0
     if SPECS_DIR.exists():
-        spec_count = len(list(SPECS_DIR.glob("*.md")))
+        spec_count = len(list(SPECS_DIR.glob("**/*.md")))
     
     # Calculate success rate
     total_runs = 0
@@ -89,21 +89,22 @@ def health():
 def list_specs():
     specs = []
     if SPECS_DIR.exists():
-        for f in SPECS_DIR.glob("*.md"):
+        # Recursive glob to find all markdown files
+        for f in SPECS_DIR.glob("**/*.md"):
             specs.append(TestSpec(
-                name=f.name,
+                name=str(f.relative_to(SPECS_DIR)), # Return relative path e.g. "auth/login.md"
                 path=str(f.absolute()),
                 content=f.read_text()
             ))
     return specs
 
-@app.get("/specs/{name}")
+@app.get("/specs/{name:path}")
 def get_spec(name: str):
     f = SPECS_DIR / name
     if not f.exists():
         raise HTTPException(status_code=404, detail="Spec not found")
     return TestSpec(
-        name=f.name,
+        name=str(f.relative_to(SPECS_DIR)),
         path=str(f.absolute()),
         content=f.read_text()
     )
@@ -118,6 +119,9 @@ def create_spec(request: CreateSpecRequest):
     f = SPECS_DIR / name
     if f.exists():
         raise HTTPException(status_code=400, detail="Spec already exists")
+    
+    # Ensure parent directory exists
+    f.parent.mkdir(parents=True, exist_ok=True)
     
     f.write_text(request.content)
     return {"status": "created", "path": str(f.absolute())}

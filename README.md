@@ -38,7 +38,7 @@ A Next.js-based dashboard is available to manage specs and runs.
 ```
 
 Features:
-- **Spec Management**: View and create test specifications.
+- **Spec Organization**: Specs are organized into folders (`basics`, `auth`, `workflows`, etc.) for better management.
 - **Run History**: detailed logs, execution plans, and generated code.
 - **Live Logs**: Watch test execution in real-time.
 - **Syntax Highlighting**: Beautiful code display for Specs and Tests.
