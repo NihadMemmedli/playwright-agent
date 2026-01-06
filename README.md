@@ -166,18 +166,19 @@ Verify user can log in with valid credentials.
 ## 📂 Project Structure
 
 ```
-test-script-converter/
-├── orchestrator/
+playwright-agent/
+├── docker-compose.yml    # Container orchestration
+├── start-ui.sh           # Dashboard launcher
+├── orchestrator/         # Python Backend & Logic
+│   ├── api/              # FastAPI Endpoints
 │   ├── workflows/        # Core pipeline logic
-│   │   ├── planner.py    # LLM Planning
-│   │   ├── operator.py   # MCP Browser Execution
-│   │   ├── exporter.py   # Code Generation
-│   │   └── validator.py  # Self-Healing
-├── schemas/              # JSON Schemas for inter-process communication
+│   ├── reporting/        # HTML/PDF Report generation
+│   └── cli.py            # CLI entry point
+├── web/                  # Next.js Frontend Dashboard
+│   ├── src/app/          # React Pages & Components
+│   └── public/           # Static Assets
 ├── specs/                # Input Markdown Specifications
-├── tests/generated/      # Output TypeScript Tests
-├── orchestrator_runner.py # Main Entry Point (Multi-process)
-└── convert-test          # CLI Wrapper
+└── tests/generated/      # Output TypeScript Tests
 ```
 
 ## ❓ Troubleshooting
