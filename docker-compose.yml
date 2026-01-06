@@ -1,0 +1,33 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: playwright-agent-backend
+    ports:
+      - "8001:8001"
+    volumes:
+      - ./runs:/app/runs
+      - ./specs:/app/specs
+      - ./tests:/app/tests
+      - ${HOME}/.claude:/home/agent/.claude:ro
+    environment:
+      - ANTHROPIC_AUTH_TOKEN=${ANTHROPIC_AUTH_TOKEN}
+      - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-glm-4.5-air}
+    entrypoint: python -m uvicorn orchestrator.api.main:app --host 0.0.0.0 --port 8001
+    # command: uvicorn orchestrator.api.main:app --host 0.0.0.0 --port 8001
+    network_mode: bridge
+
+  frontend:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: playwright-agent-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8001
+    depends_on:
+      - backend
+    network_mode: bridge
