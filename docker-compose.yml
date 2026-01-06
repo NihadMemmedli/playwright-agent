@@ -10,7 +10,7 @@ services:
       - ./runs:/app/runs
       - ./specs:/app/specs
       - ./tests:/app/tests
-      - ${HOME}/.claude:/home/agent/.claude
+
     environment:
       - ANTHROPIC_AUTH_TOKEN=${ANTHROPIC_AUTH_TOKEN}
       - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL}

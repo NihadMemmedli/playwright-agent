@@ -12,6 +12,10 @@ RUN apt-get update && apt-get install -y nodejs npm && \
 # Copy requirements first to leverage caching
 COPY orchestrator/requirements.txt /app/orchestrator/requirements.txt
 
+# Copy package.json to install node dependencies
+COPY package.json package-lock.json /app/
+RUN npm ci
+
 # Install Python dependencies
 # Upgrade pip first
 RUN pip install --no-cache-dir --upgrade pip && \
