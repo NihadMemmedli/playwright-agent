@@ -39,21 +39,22 @@ export default function SpecDetailPage() {
     const handleSave = async () => {
         setSaving(true);
         try {
-            // Re-using create spec endpoint for update, assuming it overwrites if exists
-            // But wait, create spec throws 400 if exists. We need to handle this.
-            // Update: User might want to edit.
-            // Let's assume for now just "View" is the primary goal as per request.
-            // But adding Edit support would be nice.
-            // Since existing API explicitly blocks overwrite, we can't save changes without a new endpoint or flag.
-            // For this MVP step, I will only implement VIEW mode to satisfy "see what is actually specs".
-            // EDIT mode is a nice to have but I should be careful not to break things.
-            // I will disable saving for now or just treat it as read-only view.
-            alert("Edit functionality not yet implemented in backend.");
+            const res = await fetch(`http://127.0.0.1:8001/specs/${decodedName}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ content })
+            });
+
+            if (res.ok) {
+                setOriginalContent(content);
+                setIsEditing(false);
+            } else {
+                alert('Failed to save');
+            }
         } catch (e) {
             alert('Failed to save');
         } finally {
             setSaving(false);
-            setIsEditing(false);
         }
     };
 
@@ -87,11 +88,21 @@ export default function SpecDetailPage() {
                     <p style={{ color: 'var(--text-secondary)' }}>View and run test specification.</p>
                 </div>
                 <div style={{ display: 'flex', gap: '1rem' }}>
-                    {/* 
-            <button className="btn" onClick={() => setIsEditing(!isEditing)} style={{ background: 'var(--surface)' }}>
-                {isEditing ? 'Cancel' : <><Edit size={18} /> Edit</>}
-            </button> 
-            */}
+                    {isEditing && (
+                        <button className="btn" onClick={handleSave} disabled={saving} style={{ background: 'var(--primary)', color: 'white' }}>
+                            {saving ? 'Saving...' : <><Save size={18} /> Save</>}
+                        </button>
+                    )}
+                    <button className="btn" onClick={() => {
+                        if (isEditing) {
+                            setContent(originalContent); // Reset
+                            setIsEditing(false);
+                        } else {
+                            setIsEditing(true);
+                        }
+                    }} style={{ background: 'var(--surface)' }}>
+                        {isEditing ? 'Cancel' : <><Edit size={18} /> Edit</>}
+                    </button>
                     <button className="btn btn-primary" onClick={runTest}>
                         <Play size={18} /> Run Test
                     </button>
@@ -100,15 +111,34 @@ export default function SpecDetailPage() {
 
             <div className="card" style={{ height: 'calc(100vh - 250px)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ flex: 1, overflow: 'auto', background: '#0d1117', borderRadius: 'var(--radius)' }}>
-                    <SyntaxHighlighter
-                        language="markdown"
-                        style={vscDarkPlus}
-                        customStyle={{ margin: 0, padding: '1.5rem', fontSize: '0.9rem', background: '#0d1117', minHeight: '100%' }}
-                        showLineNumbers={true}
-                        wrapLines={true}
-                    >
-                        {content || ''}
-                    </SyntaxHighlighter>
+                    {isEditing ? (
+                        <textarea
+                            value={content}
+                            onChange={e => setContent(e.target.value)}
+                            style={{
+                                width: '100%',
+                                height: '100%',
+                                background: '#0d1117',
+                                color: '#e6edf3',
+                                border: 'none',
+                                padding: '1.5rem',
+                                fontFamily: 'monospace',
+                                fontSize: '0.9rem',
+                                resize: 'none',
+                                outline: 'none'
+                            }}
+                        />
+                    ) : (
+                        <SyntaxHighlighter
+                            language="markdown"
+                            style={vscDarkPlus}
+                            customStyle={{ margin: 0, padding: '1.5rem', fontSize: '0.9rem', background: '#0d1117', minHeight: '100%' }}
+                            showLineNumbers={true}
+                            wrapLines={true}
+                        >
+                            {content || ''}
+                        </SyntaxHighlighter>
+                    )}
                 </div>
             </div>
         </div>

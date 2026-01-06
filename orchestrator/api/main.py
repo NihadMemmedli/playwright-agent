@@ -9,7 +9,7 @@ import sys
 import os
 from typing import List
 from pydantic import BaseModel
-from .models import TestSpec, TestRun, CreateSpecRequest
+from .models import TestSpec, TestRun, CreateSpecRequest, UpdateSpecRequest
 
 app = FastAPI(title="Playwright Agent API")
 
@@ -125,6 +125,15 @@ def create_spec(request: CreateSpecRequest):
     
     f.write_text(request.content)
     return {"status": "created", "path": str(f.absolute())}
+
+@app.put("/specs/{name:path}")
+def update_spec(name: str, request: UpdateSpecRequest):
+    f = SPECS_DIR / name
+    if not f.exists():
+        raise HTTPException(status_code=404, detail="Spec not found")
+    
+    f.write_text(request.content)
+    return {"status": "updated", "path": str(f.absolute())}
 
 @app.get("/runs", response_model=List[TestRun])
 def list_runs():

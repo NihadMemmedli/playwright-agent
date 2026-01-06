@@ -17,3 +17,6 @@ class TestRun(BaseModel):
 class CreateSpecRequest(BaseModel):
     name: str
     content: str
+
+class UpdateSpecRequest(BaseModel):
+    content: str

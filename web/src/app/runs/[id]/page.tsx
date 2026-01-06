@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { ArrowLeft, CheckCircle, XCircle, PlayCircle, AlertCircle, FileText, Layout, Code } from 'lucide-react';
+import { ArrowLeft, CheckCircle, XCircle, PlayCircle, AlertCircle, FileText, Layout, Code, Copy, Check } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
@@ -10,6 +10,8 @@ export default function RunDetailPage() {
     const id = params?.id as string;
     const [data, setData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [copied, setCopied] = useState(false);
+
 
     useEffect(() => {
         if (!id) return;
@@ -98,7 +100,22 @@ export default function RunDetailPage() {
                         </h2>
                         {data.export?.testFilePath && (
                             <div>
-                                <p style={{ marginBottom: '1rem' }}>Generated file: <code style={{ background: 'rgba(0,0,0,0.3)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>{data.export.testFilePath}</code></p>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                                    <p style={{ margin: 0 }}>Generated file: <code style={{ background: 'rgba(0,0,0,0.3)', padding: '0.2rem 0.5rem', borderRadius: '4px' }}>{data.export.testFilePath}</code></p>
+                                    <button
+                                        className="btn"
+                                        onClick={() => {
+                                            if (data.generated_code) {
+                                                navigator.clipboard.writeText(data.generated_code);
+                                                setCopied(true);
+                                                setTimeout(() => setCopied(false), 2000);
+                                            }
+                                        }}
+                                        style={{ fontSize: '0.8rem', padding: '0.25rem 0.75rem', height: 'auto', background: 'var(--surface)', color: 'white' }}
+                                    >
+                                        {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy Code</>}
+                                    </button>
+                                </div>
                                 <div style={{
                                     borderRadius: 'var(--radius)',
                                     overflow: 'hidden',

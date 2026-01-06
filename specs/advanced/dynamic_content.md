@@ -9,7 +9,7 @@ Test waiting for and verifying dynamically loaded content.
 2. Verify "Hello World" text is NOT visible initially
 3. Click the Start button
 4. Wait for the loading indicator to disappear
-5. Verify "Hello World!" text appears after loading completes
+5. Verify "Hello World!" text appears after loading completes and
 6. Take a screenshot of the final state
 
 ## Expected Outcome
