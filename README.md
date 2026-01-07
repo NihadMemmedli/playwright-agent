@@ -176,6 +176,21 @@ Verify user can log in with valid credentials.
 -   `wait` - Pause for condition
 -   `assert` - Verify visibility/text
 -   `screenshot` - Capture current state
+-   `check visual` - Verify visual layout (Visual Regression)
+
+### 👁️ Visual Regression Testing
+
+You can verify the visual appearance of a page by adding a "visual check" step to your spec.
+
+```markdown
+1. Navigate to https://example.com
+2. Verify visual layout
+```
+
+The agent will generate a test that uses `expect(page).toHaveScreenshot()`.
+- **First Run**: Captures the baseline image.
+- **Subsequent Runs**: Compares the current view against the baseline.
+- **Failures**: If pixels don't match, the **Run Details** page in the dashboard will show a visual comparison (Expected vs Actual vs Diff).
 
 ## 📂 Project Structure
 

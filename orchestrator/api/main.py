@@ -181,18 +181,19 @@ def get_run(id: str):
         
     # List artifacts
     artifacts = []
-    test_results_dir = run_dir / "test-results"
-    if test_results_dir.exists():
-        for f in test_results_dir.glob("**/*"):
-            if f.suffix in [".png", ".webm"]:
-                # relative path from RUNS_DIR for serving via /artifacts
-                # e.g. artifacts/run_id/test-results/test-1/image.png
-                rel_path = f.relative_to(RUNS_DIR)
-                artifacts.append({
-                    "name": f.name,
-                    "path": f"/artifacts/{rel_path}",
-                    "type": "image" if f.suffix == ".png" else "video"
-                })
+    if run_dir.exists():
+        # Search for artifacts recursively
+        for f in run_dir.glob("**/*"):
+            if f.is_file() and f.suffix.lower() in [".png", ".jpg", ".jpeg", ".webm", ".mp4"]:
+                try:
+                    rel_path = f.relative_to(RUNS_DIR)
+                    artifacts.append({
+                        "name": f.name,
+                        "path": f"/artifacts/{rel_path}",
+                        "type": "image" if f.suffix.lower() in [".png", ".jpg", ".jpeg"] else "video"
+                    })
+                except ValueError:
+                    continue
     data["artifacts"] = artifacts
     
     # Check for HTML Report

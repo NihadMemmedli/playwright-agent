@@ -114,6 +114,7 @@ CODE STYLE REQUIREMENTS:
 - Use getByLabel() for form inputs
 - Use getByText() for text content
 - Add proper assertions with expect()
+- **VISUAL REGRESSION**: If a step implies verifying layout, "check visual", or "screenshot", use `await expect(page).toHaveScreenshot('name.png')`.
 - Group steps with test.step() when logical
 - Make code readable and maintainable
 
