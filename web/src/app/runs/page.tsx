@@ -90,6 +90,42 @@ export default function RunsPage() {
         }
     };
 
+    const formatTimestamp = (ts: string) => {
+        try {
+            // ts is in format 2026-01-07_22-12-37
+            const [datePart, timePart] = ts.split('_');
+            const [year, month, day] = datePart.split('-').map(Number);
+            const [hour, min, sec] = timePart.split('-').map(Number);
+
+            const date = new Date(year, month - 1, day, hour, min, sec);
+            return date.toLocaleString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+                hour: 'numeric',
+                minute: '2-digit',
+                hour12: true
+            });
+        } catch (e) {
+            return ts;
+        }
+    };
+
+    const formatRunId = (id: string) => {
+        try {
+            // Extract time portion from format 2026-01-07_22-12-37
+            const timePart = id.split('_')[1];
+            if (timePart) {
+                // Remove dashes and create a compact ID like #221237
+                return `#${timePart.replace(/-/g, '')}`;
+            }
+            // Fallback to last 6 characters
+            return `#${id.slice(-6)}`;
+        } catch (e) {
+            return `#${id.substring(0, 6)}`;
+        }
+    };
+
     if (loading) return (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
             <div className="loading-spinner"></div>
@@ -98,9 +134,9 @@ export default function RunsPage() {
 
     return (
         <div style={{ maxWidth: '800px', margin: '0 auto', paddingTop: '2rem' }}>
-            <header style={{ marginBottom: '3rem', textAlign: 'center' }}>
-                <h1 style={{ fontSize: '2.5rem', marginBottom: '0.75rem', fontWeight: 700 }}>Test Runs</h1>
-                <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>
+            <header style={{ marginBottom: '4rem', textAlign: 'center' }}>
+                <h1 style={{ fontSize: '2.5rem', marginBottom: '1.5rem', fontWeight: 700 }}>Test Runs</h1>
+                <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem', maxWidth: '600px', margin: '0 auto' }}>
                     History of your automated test executions.
                 </p>
             </header>
@@ -128,11 +164,11 @@ export default function RunsPage() {
                                         {status.icon}
                                     </div>
                                     <div>
-                                        <h3 style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: '0.25rem' }}>
+                                        <h3 style={{ fontWeight: 600, fontSize: '1.1rem', marginBottom: '0.65rem' }}>
                                             {run.test_name || 'Unnamed Test Execution'}
                                         </h3>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                                            <span style={{ fontFamily: 'var(--font-mono)', opacity: 0.7 }}>#{run.id.substring(0, 8)}</span>
+                                            <span style={{ fontFamily: 'var(--font-mono)', opacity: 0.7 }}>{formatRunId(run.id)}</span>
                                             <span>•</span>
                                             <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                                                 {getBrowserIcon(run.browser)}
@@ -141,7 +177,7 @@ export default function RunsPage() {
                                             <span>•</span>
                                             <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                                                 <Clock size={14} />
-                                                {run.timestamp}
+                                                {formatTimestamp(run.timestamp)}
                                             </span>
                                         </div>
                                     </div>
