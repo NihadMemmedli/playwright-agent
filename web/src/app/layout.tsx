@@ -12,7 +12,7 @@ export default function RootLayout({
     children: React.ReactNode;
 }) {
     return (
-        <html lang="en">
+        <html lang="en" suppressHydrationWarning>
             <body style={{ display: 'flex' }}>
                 <Sidebar />
                 <main style={{ flex: 1, padding: '2rem', overflowY: 'auto', height: '100vh' }}>
