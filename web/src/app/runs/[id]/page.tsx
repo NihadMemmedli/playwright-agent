@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import {
     ArrowLeft, CheckCircle, Copy, Check, Image as ImageIcon, Video as VideoIcon,
-    ExternalLink, Code, Layout, FileText, Eye, Globe, Chrome, Compass
+    ExternalLink, Code, Layout, FileText, Eye, Globe, Chrome, Compass, Clock, XCircle
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -89,6 +89,21 @@ export default function RunDetailPage() {
         }
     });
 
+    const formatRunId = (id: string) => {
+        try {
+            // Extract time portion from format 2026-01-07_22-12-37
+            const timePart = id.split('_')[1];
+            if (timePart) {
+                // Remove dashes and create a compact ID like #221237
+                return `#${timePart.replace(/-/g, '')}`;
+            }
+            // Fallback to last 6 characters
+            return `#${id.slice(-6)}`;
+        } catch (e) {
+            return `#${id.substring(0, 6)}`;
+        }
+    };
+
 
     return (
         <div style={{ maxWidth: '1200px', margin: '0 auto', paddingTop: '1rem' }}>
@@ -96,17 +111,72 @@ export default function RunDetailPage() {
                 <ArrowLeft size={16} /> Back to Runs
             </Link>
 
-            <header style={{ marginBottom: '2rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start' }}>
+            <header style={{ marginBottom: '3rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '1.5rem' }}>
                     <div>
-                        <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem', fontWeight: 700 }}>
+                        <h1 style={{ fontSize: '2.5rem', marginBottom: '0.75rem', fontWeight: 700 }}>
                             {data.plan?.testName || 'Test Run'}
                         </h1>
-                        <p style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)' }}>Run ID: {id}</p>
+                        <p style={{ color: 'var(--text-secondary)', fontFamily: 'var(--font-mono)', fontSize: '0.95rem' }}>Run ID: {formatRunId(id)}</p>
                     </div>
                     <div className={`badge badge-${data.run?.finalState === 'passed' ? 'success' : data.run?.finalState === 'failed' ? 'danger' : 'secondary'}`} style={{ fontSize: '1rem', padding: '0.5rem 1rem' }}>
                         {data.run?.finalState || 'Unknown Status'}
                     </div>
+                </div>
+
+                {/* Run Metadata Bar */}
+                <div style={{
+                    display: 'flex',
+                    gap: '1.5rem',
+                    flexWrap: 'wrap',
+                    padding: '1rem 1.5rem',
+                    background: 'rgba(255,255,255,0.03)',
+                    borderRadius: 'var(--radius)',
+                    border: '1px solid var(--border)'
+                }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Clock size={16} color="var(--text-secondary)" />
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Duration:</span>
+                        <span style={{ fontWeight: 600 }}>{data.run?.duration ? `${data.run.duration.toFixed(2)}s` : 'N/A'}</span>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        {(() => {
+                            const browser = data.run?.browser;
+                            switch (browser) {
+                                case 'firefox':
+                                    return <Globe size={16} color="#FF7139" />;
+                                case 'webkit':
+                                    return <Compass size={16} color="#007AFF" />;
+                                case 'chromium':
+                                default:
+                                    return <Chrome size={16} color="#4285F4" />;
+                            }
+                        })()}
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Browser:</span>
+                        <span style={{ fontWeight: 600, textTransform: 'capitalize' }}>{data.run?.browser || 'chromium'}</span>
+                    </div>
+                    {data.validation?.status && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            {data.validation.status === 'success' ? <CheckCircle size={16} color="var(--success)" /> : <XCircle size={16} color="var(--danger)" />}
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Validation:</span>
+                            <span style={{ fontWeight: 600, color: data.validation.status === 'success' ? 'var(--success)' : 'inherit' }}>
+                                {data.validation.status === 'success' ? 'Passed' : data.validation.status}
+                            </span>
+                        </div>
+                    )}
+                    {data.report_url && (
+                        <div style={{ marginLeft: 'auto' }}>
+                            <a
+                                href={`http://localhost:8001${data.report_url}`}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="btn btn-secondary"
+                                style={{ fontSize: '0.85rem', padding: '0.4rem 0.9rem', height: 'auto', display: 'inline-flex', gap: '0.5rem', alignItems: 'center' }}
+                            >
+                                <ExternalLink size={14} /> View HTML Report
+                            </a>
+                        </div>
+                    )}
                 </div>
 
                 {data.run?.notes?.some((note: string) => note.includes('Reused existing code')) && (
@@ -129,7 +199,7 @@ export default function RunDetailPage() {
                 )}
             </header>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 350px', gap: '2rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
 
                     {/* Visual Regression Section */}
@@ -290,63 +360,6 @@ export default function RunDetailPage() {
 
                 </div>
 
-                <div>
-                    <div style={{ position: 'sticky', top: '2rem' }}>
-                        <section className="card">
-                            <h3 style={{ fontSize: '1.1rem', marginBottom: '1rem', fontWeight: 600 }}>Run Details</h3>
-                            <ul style={{ listStyle: 'none', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                                <li>
-                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Duration</div>
-                                    <div style={{ fontWeight: 600 }}>{data.run?.duration ? `${data.run.duration.toFixed(2)}s` : '-'}</div>
-                                </li>
-                                <li>
-                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Browser</div>
-                                    <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', textTransform: 'capitalize' }}>
-                                        {(() => {
-                                            const browser = data.run?.browser;
-                                            switch (browser) {
-                                                case 'firefox':
-                                                    return <Globe size={16} color="#FF7139" />;
-                                                case 'webkit':
-                                                    return <Compass size={16} color="#007AFF" />;
-                                                case 'chromium':
-                                                default:
-                                                    return <Chrome size={16} color="#4285F4" />;
-                                            }
-                                        })()}
-                                        {data.run?.browser || 'chromium'}
-                                    </div>
-                                </li>
-                                <li>
-                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Status</div>
-                                    <div style={{ fontWeight: 600 }}>{data.run?.finalState || 'Pending'}</div>
-                                </li>
-                                <li>
-                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Validation</div>
-                                    <div style={{ fontWeight: 600 }}>
-                                        {data.validation?.status === 'success' ? (
-                                            <span style={{ color: 'var(--success)' }}>Passed</span>
-                                        ) : (
-                                            <span>{data.validation?.status || '-'}</span>
-                                        )}
-                                    </div>
-                                </li>
-                            </ul>
-
-                            {data.report_url && (
-                                <a
-                                    href={`http://localhost:8001${data.report_url}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="btn btn-primary"
-                                    style={{ marginTop: '1.5rem', width: '100%', justifyContent: 'center', display: 'flex', gap: '0.5rem', alignItems: 'center' }}
-                                >
-                                    <ExternalLink size={16} /> View HTML Report
-                                </a>
-                            )}
-                        </section>
-                    </div>
-                </div>
             </div>
         </div>
     );

@@ -67,17 +67,17 @@ export default function NewSpecPage() {
                 <ArrowLeft size={16} /> Back to Specs
             </Link>
 
-            <header style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h1 style={{ fontSize: '2rem' }}>New Test Spec</h1>
+            <header style={{ marginBottom: '3rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h1 style={{ fontSize: '2.5rem', fontWeight: 700 }}>New Test Spec</h1>
                 <button className="btn btn-primary" onClick={handleSave} disabled={loading}>
                     <Save size={18} />
                     {loading ? 'Saving...' : 'Save Spec'}
                 </button>
             </header>
 
-            <div style={{ display: 'grid', gap: '1.5rem', maxWidth: '800px' }}>
+            <div style={{ display: 'grid', gap: '2rem', maxWidth: '800px' }}>
                 <div className="card">
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Filename (e.g. login.md)</label>
+                    <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 600, fontSize: '0.95rem', color: 'var(--text)' }}>Filename (e.g. login.md)</label>
                     <input
                         type="text"
                         value={name}
@@ -89,13 +89,16 @@ export default function NewSpecPage() {
                             border: '1px solid var(--border)',
                             borderRadius: 'var(--radius)',
                             color: 'white',
-                            fontSize: '1rem'
+                            fontSize: '1rem',
+                            transition: 'border-color 0.2s ease'
                         }}
+                        onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+                        onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
                     />
                 </div>
 
                 <div className="card" style={{ height: 'calc(100vh - 300px)', display: 'flex', flexDirection: 'column' }}>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Content</label>
+                    <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 600, fontSize: '0.95rem', color: 'var(--text)' }}>Content</label>
                     <textarea
                         value={content}
                         onChange={e => setContent(e.target.value)}
@@ -107,9 +110,13 @@ export default function NewSpecPage() {
                             borderRadius: 'var(--radius)',
                             color: 'white',
                             fontFamily: 'monospace',
-                            fontSize: '0.9rem',
-                            resize: 'none'
+                            fontSize: '0.95rem',
+                            lineHeight: '1.6',
+                            resize: 'none',
+                            transition: 'border-color 0.2s ease'
                         }}
+                        onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
+                        onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
                     />
                 </div>
             </div>
