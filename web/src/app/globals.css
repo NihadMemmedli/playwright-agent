@@ -234,3 +234,39 @@ select.input {
 .visibility-toggle:hover {
   color: var(--text);
 }
+
+/* Badge variants */
+.badge-sm {
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+}
+
+/* List/Card Item Styles */
+.list-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.list-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+  border-color: var(--primary);
+}
+
+.status-icon-wrapper {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface-hover);
+  flex-shrink: 0;
+}

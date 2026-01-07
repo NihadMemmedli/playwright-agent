@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useMemo } from 'react';
-import { FileText, Plus, Play, Folder, FolderOpen, ChevronRight, ChevronDown } from 'lucide-react';
+import { FileText, Plus, Play, Folder, FolderOpen, ChevronRight, ChevronDown, Search, FolderClosed } from 'lucide-react';
 import Link from 'next/link';
 
 interface Spec {
@@ -11,10 +11,10 @@ interface Spec {
 
 interface TreeNode {
     name: string;
-    path: string; // Full relative path for file, or folder path
+    path: string;
     type: 'file' | 'folder';
     children?: Record<string, TreeNode>;
-    spec?: Spec; // Only for files
+    spec?: Spec;
 }
 
 export default function SpecsPage() {
@@ -24,12 +24,11 @@ export default function SpecsPage() {
     const [expandedFolders, setExpandedFolders] = useState<Set<string>>(new Set());
 
     useEffect(() => {
-        fetch('http://127.0.0.1:8001/specs')
+        fetch('http://localhost:8001/specs')
             .then(res => res.json())
             .then(data => {
                 setSpecs(data);
                 setLoading(false);
-                // Auto-expand top level by default
                 const topLevelFolders = new Set<string>();
                 data.forEach((s: Spec) => {
                     const parts = s.name.split('/');
@@ -54,21 +53,21 @@ export default function SpecsPage() {
         e.preventDefault();
         e.stopPropagation();
         try {
-            const res = await fetch('http://127.0.0.1:8001/runs', {
+            const res = await fetch('http://localhost:8001/runs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ spec_name: specName })
             });
             const data = await res.json();
             if (data.status === 'started') {
-                alert('Run started! Check Runs tab.');
+                // Could show toast here
+                console.log('Run started');
             }
         } catch (e) {
-            alert('Failed to start run');
+            console.error('Failed to start run');
         }
     };
 
-    // Filter and Build Tree
     const tree = useMemo(() => {
         const root: Record<string, TreeNode> = {};
 
@@ -100,36 +99,59 @@ export default function SpecsPage() {
     }, [specs, searchTerm]);
 
     const renderNode = (node: TreeNode, depth: number = 0) => {
-        const isExpanded = expandedFolders.has(node.path) || searchTerm.length > 0; // Auto expand on search
+        const isExpanded = expandedFolders.has(node.path) || searchTerm.length > 0;
 
         if (node.type === 'file') {
             return (
-                <div key={node.path} style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '0.5rem 0.75rem',
-                    paddingLeft: `${depth * 1.5 + 0.75}rem`,
-                    borderBottom: '1px solid var(--border)',
-                    background: 'var(--surface)',
-                    fontSize: '0.9rem'
-                }}>
-                    <Link href={`/specs/${node.spec?.name}`} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none', color: 'inherit', flex: 1 }}>
-                        <FileText size={16} color="var(--primary)" />
-                        <span>{node.name}</span>
-                    </Link>
-                    <button
-                        className="btn-icon"
-                        title="Run Spec"
-                        onClick={(e) => node.spec && runTest(node.spec.name, e)}
-                        style={{ padding: '4px', color: 'var(--primary)' }}
-                    >
-                        <Play size={14} />
-                    </button>
-                </div>
+                <Link
+                    key={node.path}
+                    href={`/specs/${node.spec?.name}`}
+                    className="list-item"
+                    style={{
+                        padding: '0.875rem 1rem',
+                        paddingLeft: `${depth * 1.5 + 1}rem`,
+                        borderBottom: '1px solid var(--border)',
+                        marginBottom: 0,
+                        borderRadius: 0,
+                        borderTop: 'none',
+                        borderLeft: 'none',
+                        borderRight: 'none',
+                        background: 'transparent'
+                    }}
+                >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{
+                            width: 32, height: 32,
+                            background: 'rgba(59, 130, 246, 0.1)',
+                            borderRadius: 6,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            color: 'var(--primary)'
+                        }}>
+                            <FileText size={16} />
+                        </div>
+                        <span style={{ fontSize: '0.9rem', color: 'var(--text)' }}>{node.name}</span>
+                    </div>
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <button
+                            className="btn-icon"
+                            title="Run Spec"
+                            onClick={(e) => node.spec && runTest(node.spec.name, e)}
+                            style={{
+                                width: 32, height: 32,
+                                color: 'var(--success)',
+                                background: 'rgba(16, 185, 129, 0.1)'
+                            }}
+                        >
+                            <Play size={14} fill="currentColor" />
+                        </button>
+                        <ChevronRight size={18} color="var(--text-secondary)" />
+                    </div>
+                </Link>
             );
         }
 
+        // Folder
         return (
             <div key={node.path}>
                 <div
@@ -137,28 +159,32 @@ export default function SpecsPage() {
                     style={{
                         display: 'flex',
                         alignItems: 'center',
-                        gap: '0.5rem',
-                        padding: '0.5rem 0.75rem',
-                        paddingLeft: `${depth * 1.5}rem`,
+                        gap: '0.75rem',
+                        padding: '0.75rem 1rem',
+                        paddingLeft: `${depth * 1.5 + 0.5}rem`,
                         cursor: 'pointer',
                         userSelect: 'none',
-                        color: 'var(--text-secondary)',
-                        fontWeight: 600,
+                        color: 'var(--text)',
+                        background: 'transparent',
                         fontSize: '0.85rem',
+                        fontWeight: 700,
                         letterSpacing: '0.05em',
-                        textTransform: 'uppercase',
-                        borderBottom: '1px solid var(--border)'
+                        borderBottom: '1px solid var(--border)',
+                        borderTop: depth === 0 && node.path !== Array.from(expandedFolders)[0] ? '1px solid var(--border)' : 'none' // Add separator logic if needed, or just keep simple
                     }}
                 >
-                    {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                    {isExpanded ? <FolderOpen size={16} /> : <Folder size={16} />}
-                    {node.name}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20 }}>
+                        {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: isExpanded ? 'var(--text)' : 'inherit' }}>
+                        {isExpanded ? <FolderOpen size={16} /> : <FolderClosed size={16} />}
+                        <span style={{ textTransform: 'uppercase' }}>{node.name}</span>
+                    </div>
                 </div>
                 {isExpanded && node.children && (
-                    <div>
+                    <div style={{ background: 'var(--surface)' }}>
                         {Object.values(node.children)
                             .sort((a, b) => {
-                                // Folders first, then files
                                 if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
                                 return a.name.localeCompare(b.name);
                             })
@@ -170,61 +196,58 @@ export default function SpecsPage() {
         );
     };
 
+    if (loading) return (
+        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
+            <div className="loading-spinner"></div>
+        </div>
+    );
+
     return (
-        <div className="container">
-            <header style={{ marginBottom: '2rem' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <div style={{ maxWidth: '800px', margin: '0 auto', paddingTop: '2rem' }}>
+            <header style={{ marginBottom: '2.5rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '2rem' }}>
                     <div>
-                        <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>Test Specs</h1>
-                        <p style={{ color: 'var(--text-secondary)' }}>Manage your test specifications.</p>
+                        <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem', fontWeight: 700 }}>Test Specs</h1>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '1.1rem' }}>Manage and execute your test specifications.</p>
                     </div>
-                    <Link href="/specs/new" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none' }}>
+                    <Link href="/specs/new" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', textDecoration: 'none', padding: '0.6rem 1.25rem' }}>
                         <Plus size={18} />
                         New Spec
                     </Link>
                 </div>
 
-                {/* Search Bar */}
-                <div style={{ position: 'relative' }}>
+                <div className="input-group">
+                    <div className="input-icon">
+                        <Search size={18} />
+                    </div>
                     <input
                         type="text"
                         placeholder="Search specs..."
                         value={searchTerm}
                         onChange={(e) => setSearchTerm(e.target.value)}
-                        style={{
-                            width: '100%',
-                            padding: '0.75rem 1rem 0.75rem 2.5rem',
-                            background: '#0d1117',
-                            border: '1px solid #30363d',
-                            borderRadius: '6px',
-                            color: 'white',
-                            fontSize: '0.95rem'
-                        }}
+                        className="input has-icon"
+                        style={{ paddingTop: '0.875rem', paddingBottom: '0.875rem' }}
                     />
-                    <div style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }}>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
-                    </div>
                 </div>
             </header>
 
-            {loading ? (
-                <p>Loading specs...</p>
-            ) : (
-                <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-                    {Object.keys(tree).length === 0 && (
-                        <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                            No specs found.
+            <div className="card" style={{ padding: 0, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                {Object.keys(tree).length === 0 && (
+                    <div style={{ padding: '4rem 2rem', textAlign: 'center', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '1rem' }}>
+                        <div style={{ width: 64, height: 64, background: 'var(--surface-hover)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-secondary)' }}>
+                            <Search size={24} />
                         </div>
-                    )}
+                        <p style={{ color: 'var(--text-secondary)' }}>No specs found.</p>
+                    </div>
+                )}
 
-                    {Object.values(tree)
-                        .sort((a, b) => {
-                            if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
-                            return a.name.localeCompare(b.name);
-                        })
-                        .map(node => renderNode(node))}
-                </div>
-            )}
+                {Object.values(tree)
+                    .sort((a, b) => {
+                        if (a.type !== b.type) return a.type === 'folder' ? -1 : 1;
+                        return a.name.localeCompare(b.name);
+                    })
+                    .map(node => renderNode(node))}
+            </div>
         </div>
     );
 }
