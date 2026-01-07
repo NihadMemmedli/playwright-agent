@@ -11,6 +11,7 @@ export function Sidebar() {
         { href: '/dashboard', label: 'Reporting', icon: BarChart2 },
         { href: '/specs', label: 'Test Specs', icon: FileText },
         { href: '/runs', label: 'Test Runs', icon: Play },
+        { href: '/settings', label: 'Settings', icon: Settings },
     ];
 
     return (

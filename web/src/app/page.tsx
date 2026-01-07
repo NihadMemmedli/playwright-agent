@@ -12,7 +12,7 @@ export default function Home() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        fetch('http://127.0.0.1:8001/stats')
+        fetch('http://127.0.0.1:8001/dashboard')
             .then(res => res.json())
             .then(data => {
                 setStats(data);

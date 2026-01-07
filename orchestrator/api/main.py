@@ -11,7 +11,7 @@ import os
 from typing import List
 from pydantic import BaseModel
 from .models import TestSpec, TestRun, CreateSpecRequest, UpdateSpecRequest
-from .dashboard import get_dashboard_stats
+from . import dashboard, settings
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 SPECS_DIR = BASE_DIR / "specs"
@@ -19,10 +19,8 @@ RUNS_DIR = BASE_DIR / "runs"
 
 app = FastAPI(title="Playwright Agent API")
 
-@app.get("/dashboard")
-def get_dashboard():
-    return get_dashboard_stats(RUNS_DIR)
-
+app.include_router(dashboard.router)
+app.include_router(settings.router)
 app.mount("/artifacts", StaticFiles(directory=RUNS_DIR), name="artifacts")
 
 app.add_middleware(
@@ -32,62 +30,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-@app.get("/stats")
-def get_stats():
-    # Count specs
-    spec_count = 0
-    if SPECS_DIR.exists():
-        spec_count = len(list(SPECS_DIR.glob("**/*.md")))
-    
-    # Calculate success rate
-    total_runs = 0
-    passed_runs = 0
-    last_run_time = "Never"
-    
-    if RUNS_DIR.exists():
-        runs = [d for d in RUNS_DIR.iterdir() if d.is_dir()]
-        total_runs = len(runs)
-        
-        # Sort by modification time (latest first)
-        runs.sort(key=lambda x: os.path.getmtime(x), reverse=True)
-        
-        if runs:
-            latest_run = runs[0]
-            # Try to format timestamp if folder name matches pattern, else use mtime
-            try:
-                # Check if name is like YYYY-MM-DD_HH-MM-SS
-                if len(latest_run.name) == 19 and latest_run.name.count("_") >= 1:
-                    parts = latest_run.name.split("_")
-                    last_run_time = f"{parts[0]} {parts[1].replace('-', ':')}"
-                else:
-                    # Use modification time
-                    ts = os.path.getmtime(latest_run)
-                    dt = datetime.fromtimestamp(ts)
-                    last_run_time = dt.strftime("%Y-%m-%d %H:%M:%S")
-            except:
-                last_run_time = latest_run.name
-
-        for d in runs:
-            run_file = d / "run.json"
-            if run_file.exists():
-                try:
-                    data = json.loads(run_file.read_text())
-                    if data.get("finalState") == "passed":
-                        passed_runs += 1
-                except:
-                    pass
-    
-    success_rate = 0
-    if total_runs > 0:
-        success_rate = int((passed_runs / total_runs) * 100)
-        
-    return {
-        "total_specs": spec_count,
-        "total_runs": total_runs,
-        "success_rate": success_rate,
-        "last_run": last_run_time
-    }
 
 @app.get("/health")
 def health():
