@@ -67,6 +67,11 @@ class Operator:
         # Query the agent with Playwright MCP access
         run = await self._query_agent(prompt)
 
+        # Propagate metadata from plan to run
+        if run:
+            run["specFileName"] = plan.get("specFileName")
+            run["specFilePath"] = plan.get("specFilePath")
+
         # Validate against schema
         print("✅ Validating run against schema...")
         validate_json_schema(run, self.schema_path)

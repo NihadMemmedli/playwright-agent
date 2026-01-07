@@ -52,6 +52,19 @@ class Exporter:
 
         # Determine test file path
         test_path = export_result.get("testFilePath")
+
+        # OVERRIDE: If we know the original spec filename, use it to generate a deterministic test filename
+        # This prevents collisions when users copy specs but don't change the H1 header.
+        if run.get("specFileName"):
+            import re
+            spec_name = run.get("specFileName")
+            # Remove extension
+            stem = spec_name.rsplit('.', 1)[0]
+            # Slugify: Lowercase, replace non-alphanumeric with hyphens
+            slug = re.sub(r'[^a-z0-9]+', '-', stem.lower()).strip('-')
+            test_path = f"{test_dir}/{slug}.spec.ts"
+            export_result["testFilePath"] = test_path
+
         # Remove test_dir prefix if already in the path
         if test_path.startswith(test_dir):
             test_path = test_path
