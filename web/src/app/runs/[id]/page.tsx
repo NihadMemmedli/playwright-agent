@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import {
     ArrowLeft, CheckCircle, Copy, Check, Image as ImageIcon, Video as VideoIcon,
-    ExternalLink, Code, Layout, FileText, Eye
+    ExternalLink, Code, Layout, FileText, Eye, Globe, Chrome, Compass
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
@@ -298,6 +298,24 @@ export default function RunDetailPage() {
                                 <li>
                                     <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Duration</div>
                                     <div style={{ fontWeight: 600 }}>{data.run?.duration ? `${data.run.duration.toFixed(2)}s` : '-'}</div>
+                                </li>
+                                <li>
+                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Browser</div>
+                                    <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.5rem', textTransform: 'capitalize' }}>
+                                        {(() => {
+                                            const browser = data.run?.browser;
+                                            switch (browser) {
+                                                case 'firefox':
+                                                    return <Globe size={16} color="#FF7139" />;
+                                                case 'webkit':
+                                                    return <Compass size={16} color="#007AFF" />;
+                                                case 'chromium':
+                                                default:
+                                                    return <Chrome size={16} color="#4285F4" />;
+                                            }
+                                        })()}
+                                        {data.run?.browser || 'chromium'}
+                                    </div>
                                 </li>
                                 <li>
                                     <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Status</div>

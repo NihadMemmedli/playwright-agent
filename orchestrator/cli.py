@@ -100,6 +100,12 @@ def main():
         "--try-code",
         help="Path to existing generated code to try before regenerating",
     )
+    parser.add_argument(
+        "--browser",
+        default="chromium",
+        choices=["chromium", "firefox", "webkit"],
+        help="Browser project to run tests on (default: chromium)"
+    )
 
     args = parser.parse_args()
     spec_path = args.spec
@@ -157,13 +163,14 @@ def main():
                 "testName": test_name,
                 "steps": [], # We don't have steps if we reuse code, UI will handle empty steps
                 "specFileName": spec_file.name,
-                "specFilePath": str(spec_file.absolute())
+                "specFilePath": str(spec_file.absolute()),
+                "browser": args.browser
             }
             (run_dir / "plan.json").write_text(json.dumps(plan_data, indent=2))
             
             # Run the test
             output_dir = run_dir / "test-results"
-            cmd = f"PLAYWRIGHT_OUTPUT_DIR='{output_dir}' npx playwright test '{code_path}'"
+            cmd = f"PLAYWRIGHT_OUTPUT_DIR='{output_dir}' npx playwright test '{code_path}' --project {args.browser}"
             print(f"   Executing: {cmd}")
             sys.stdout.flush() 
             
@@ -176,7 +183,8 @@ def main():
                     "finalState": "passed",
                     "duration": 0,
                     "steps": [], 
-                    "notes": ["Reused existing code"]
+                    "notes": ["Reused existing code"],
+                    "browser": args.browser
                 }
                 (run_dir / "run.json").write_text(json.dumps(run_data, indent=2))
                 
@@ -211,6 +219,7 @@ def main():
                 plan_data = json.loads((run_dir / "plan.json").read_text())
                 plan_data["specFileName"] = spec_file.name
                 plan_data["specFilePath"] = str(spec_file.absolute())
+                plan_data["browser"] = args.browser
                 (run_dir / "plan.json").write_text(json.dumps(plan_data, indent=2))
             except Exception as e:
                 print(f"⚠️ Failed to inject metadata: {e}")
@@ -314,7 +323,7 @@ def main():
     if test_path:
         print("🔍 Stage 4: Validating generated test...")
         result = run_command(
-            f"-m orchestrator.workflows.validator '{test_path}' '{run_dir}'"
+            f"-m orchestrator.workflows.validator '{test_path}' '{run_dir}' '{args.browser}'"
         )
         print_output(result)
 

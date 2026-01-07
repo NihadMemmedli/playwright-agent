@@ -27,18 +27,19 @@ class Validator:
     def __init__(self, max_attempts: int = 3):
         self.max_attempts = max_attempts
 
-    async def validate_and_fix(self, test_file: str, output_dir: str = None) -> Dict:
+    async def validate_and_fix(self, test_file: str, output_dir: str = None, browser: str = "chromium") -> Dict:
         """
         Run a test and fix any failures automatically.
 
         Args:
             test_file: Path to the Playwright test file
             output_dir: Directory to save validation results
+            browser: Browser project to run (chromium, firefox, webkit)
 
         Returns:
             Dict containing validation results
         """
-        print(f"🔍 Validating test: {test_file}")
+        print(f"🔍 Validating test: {test_file} on {browser}")
 
         # Read the test file
         test_path = Path(test_file)
@@ -55,8 +56,8 @@ class Validator:
 
             # Run the test
             # Run the test
-            print("🚀 Running test...")
-            result = await self._run_test(test_file, output_dir)
+            print(f"🚀 Running test on {browser}...")
+            result = await self._run_test(test_file, output_dir, browser)
 
             if result.get("passed"):
                 print("✅ Test passed!")
@@ -64,11 +65,12 @@ class Validator:
                     "status": "success",
                     "attempts": attempt,
                     "testFile": test_file,
+                    "browser": browser,
                     "message": "Test passed successfully",
                     "timestamp": datetime.now().isoformat(),
                 }
                 break
-
+            
             # Test failed, try to fix it
             print(f"❌ Test failed (exit code: {result.get('exitCode')})")
             print(f"Output:\n{result.get('output')}")
@@ -90,6 +92,7 @@ class Validator:
                         "status": "failed",
                         "attempts": attempt,
                         "testFile": test_file,
+                        "browser": browser,
                         "message": "Could not fix automatically",
                         "remainingIssues": fix_result.get("remainingIssues"),
                         "lastError": result.get("output"),
@@ -102,6 +105,7 @@ class Validator:
                 "status": "failed",
                 "attempts": self.max_attempts,
                 "testFile": test_file,
+                "browser": browser,
                 "message": f"Failed after {self.max_attempts} attempts",
                 "lastError": result.get("output"),
                 "timestamp": datetime.now().isoformat(),
@@ -118,12 +122,12 @@ class Validator:
 
         return validation_result
 
-    async def _run_test(self, test_file: str, output_dir: str = None) -> Dict:
+    async def _run_test(self, test_file: str, output_dir: str = None, browser: str = "chromium") -> Dict:
         """Run a Playwright test and return the result"""
         import subprocess
 
         try:
-            cmd = f"npx playwright test '{test_file}' --reporter=list,html"
+            cmd = f"npx playwright test '{test_file}' --reporter=list,html --project {browser}"
             if output_dir:
                 results_dir = Path(output_dir) / "test-results"
                 report_dir = Path(output_dir) / "report"
@@ -252,10 +256,11 @@ async def main():
 
     test_file = sys.argv[1]
     output_dir = sys.argv[2] if len(sys.argv) >= 3 else None
+    browser = sys.argv[3] if len(sys.argv) >= 4 else "chromium"
 
     try:
         validator = Validator()
-        result = await validator.validate_and_fix(test_file, output_dir)
+        result = await validator.validate_and_fix(test_file, output_dir, browser)
 
         print("\n" + "=" * 80)
         print("VALIDATION COMPLETE")

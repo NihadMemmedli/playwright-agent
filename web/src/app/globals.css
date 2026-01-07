@@ -268,5 +268,21 @@ select.input {
   align-items: center;
   justify-content: center;
   background: var(--surface-hover);
-  flex-shrink: 0;
+  fill: var(--text-secondary);
+  transition: all 0.2s;
+}
+
+.loading-spinner {
+  width: 40px;
+  height: 40px;
+  border: 3px solid var(--surface-hover);
+  border-radius: 50%;
+  border-top-color: var(--primary);
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
 }

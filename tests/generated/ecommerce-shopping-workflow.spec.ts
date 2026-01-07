@@ -12,19 +12,23 @@ test.describe('E-commerce Shopping Workflow', () => {
 
     // Verify product page loaded
     await test.step('Verify product page loads with product name', async () => {
-      const productName = await page.locator('.name').textContent();
+      // Wait for product name to be visible
+      await page.waitForSelector('h2', { timeout: 5000 });
+      const productName = await page.getByRole('heading', { name: 'Samsung galaxy s6', level: 2 }).textContent();
       expect(productName).toBe('Samsung galaxy s6');
     });
 
     // Add product to cart
     await test.step('Add product to cart', async () => {
       // Handle the alert that appears when adding to cart
-      page.on('dialog', async dialog => {
-        expect(dialog.message()).toContain('Product added');
-        await dialog.accept();
-      });
-      
+      const dialogPromise = page.waitForEvent('dialog');
       await page.getByRole('link', { name: 'Add to cart' }).click();
+      const dialog = await dialogPromise;
+      expect(dialog.message()).toContain('Product added');
+      await dialog.accept();
+
+      // Wait a moment for the cart to be updated
+      await page.waitForTimeout(500);
     });
 
     // Navigate to cart
@@ -40,7 +44,12 @@ test.describe('E-commerce Shopping Workflow', () => {
 
     // Verify product in cart
     await test.step('Verify product name is visible in cart', async () => {
-      const cartProductName = await page.getByRole('cell', { name: 'Samsung galaxy s6' }).textContent();
+      // Wait for cart table to load (data loads asynchronously)
+      // The cart loads via AJAX, so we need to wait for the product row to appear
+      await page.waitForSelector('tbody tr', { state: 'visible', timeout: 10000 });
+
+      // Use locator with CSS selector since td elements don't have role="cell"
+      const cartProductName = await page.locator('tbody tr td:nth-child(2)').textContent();
       expect(cartProductName).toBe('Samsung galaxy s6');
     });
 

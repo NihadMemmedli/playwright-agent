@@ -13,6 +13,7 @@ class TestRun(BaseModel):
     test_name: Optional[str] = None
     steps_completed: int = 0
     total_steps: int = 0
+    browser: Optional[str] = "chromium"
 
 class CreateSpecRequest(BaseModel):
     name: str

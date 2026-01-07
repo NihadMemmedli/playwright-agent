@@ -49,19 +49,34 @@ export default function SpecsPage() {
         setExpandedFolders(next);
     };
 
-    const runTest = async (specName: string, e: React.MouseEvent) => {
+    const [runModalOpen, setRunModalOpen] = useState(false);
+    const [selectedSpec, setSelectedSpec] = useState<string | null>(null);
+    const [selectedBrowser, setSelectedBrowser] = useState('chromium');
+
+    const openRunModal = (specName: string, e: React.MouseEvent) => {
         e.preventDefault();
         e.stopPropagation();
+        setSelectedSpec(specName);
+        setRunModalOpen(true);
+    };
+
+    const confirmRun = async () => {
+        if (!selectedSpec) return;
+
         try {
             const res = await fetch('http://localhost:8001/runs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ spec_name: specName })
+                body: JSON.stringify({
+                    spec_name: selectedSpec,
+                    browser: selectedBrowser
+                })
             });
             const data = await res.json();
             if (data.status === 'started') {
-                // Could show toast here
                 console.log('Run started');
+                setRunModalOpen(false);
+                setSelectedSpec(null);
             }
         } catch (e) {
             console.error('Failed to start run');
@@ -136,7 +151,7 @@ export default function SpecsPage() {
                         <button
                             className="btn-icon"
                             title="Run Spec"
-                            onClick={(e) => node.spec && runTest(node.spec.name, e)}
+                            onClick={(e) => node.spec && openRunModal(node.spec.name, e)}
                             style={{
                                 width: 32, height: 32,
                                 color: 'var(--success)',
@@ -170,7 +185,7 @@ export default function SpecsPage() {
                         fontWeight: 700,
                         letterSpacing: '0.05em',
                         borderBottom: '1px solid var(--border)',
-                        borderTop: depth === 0 && node.path !== Array.from(expandedFolders)[0] ? '1px solid var(--border)' : 'none' // Add separator logic if needed, or just keep simple
+                        borderTop: depth === 0 && node.path !== Array.from(expandedFolders)[0] ? '1px solid var(--border)' : 'none'
                     }}
                 >
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', width: 20, height: 20 }}>
@@ -248,6 +263,79 @@ export default function SpecsPage() {
                     })
                     .map(node => renderNode(node))}
             </div>
+
+            {/* Run Configuration Modal */}
+            {runModalOpen && (
+                <div className="modal-overlay" onClick={() => setRunModalOpen(false)}>
+                    <div className="modal-content" onClick={e => e.stopPropagation()} style={{ width: '400px' }}>
+                        <h2 style={{ marginBottom: '1.5rem' }}>Run configuration</h2>
+
+                        <div style={{ marginBottom: '1.5rem' }}>
+                            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                                Spec
+                            </label>
+                            <div style={{ padding: '0.75rem', background: 'var(--surface-hover)', borderRadius: '6px', fontSize: '0.95rem' }}>
+                                {selectedSpec}
+                            </div>
+                        </div>
+
+                        <div style={{ marginBottom: '2rem' }}>
+                            <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>
+                                Browser
+                            </label>
+                            <div style={{ display: 'flex', gap: '0.75rem' }}>
+                                {['chromium', 'firefox', 'webkit'].map(browser => (
+                                    <button
+                                        key={browser}
+                                        onClick={() => setSelectedBrowser(browser)}
+                                        style={{
+                                            flex: 1,
+                                            padding: '0.75rem',
+                                            borderRadius: '8px',
+                                            border: selectedBrowser === browser ? '2px solid var(--primary)' : '1px solid var(--border)',
+                                            background: selectedBrowser === browser ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
+                                            color: selectedBrowser === browser ? 'var(--primary)' : 'var(--text)',
+                                            textTransform: 'capitalize',
+                                            cursor: 'pointer',
+                                            transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        {browser === 'chromium' ? 'Chrome' : browser === 'webkit' ? 'Safari' : 'Firefox'}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '1rem' }}>
+                            <button className="btn btn-secondary" onClick={() => setRunModalOpen(false)}>
+                                Cancel
+                            </button>
+                            <button className="btn btn-primary" onClick={confirmRun}>
+                                Start Run
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+            <style jsx>{`
+                .modal-overlay {
+                    position: fixed;
+                    top: 0; left: 0; right: 0; bottom: 0;
+                    background: rgba(0,0,0,0.5);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 1000;
+                    backdrop-filter: blur(2px);
+                }
+                .modal-content {
+                    background: var(--surface);
+                    padding: 2rem;
+                    border-radius: 12px;
+                    border: 1px solid var(--border);
+                    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+                }
+            `}</style>
         </div>
     );
 }

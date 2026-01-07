@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { Clock, CheckCircle2, XCircle, PlayCircle, AlertCircle, FileText, ChevronRight, Timer } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, PlayCircle, AlertCircle, FileText, ChevronRight, Timer, Globe, Chrome, Compass } from 'lucide-react';
 import Link from 'next/link';
 
 interface Run {
@@ -10,6 +10,7 @@ interface Run {
     test_name?: string;
     steps_completed: number;
     total_steps: number;
+    browser?: string;
 }
 
 export default function RunsPage() {
@@ -77,6 +78,18 @@ export default function RunsPage() {
         }
     };
 
+    const getBrowserIcon = (browser?: string) => {
+        switch (browser) {
+            case 'firefox':
+                return <Globe size={16} color="#FF7139" />; // Firefox orange
+            case 'webkit':
+                return <Compass size={16} color="#007AFF" />; // Safari blue
+            case 'chromium':
+            default:
+                return <Chrome size={16} color="#4285F4" />; // Chrome blue
+        }
+    };
+
     if (loading) return (
         <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
             <div className="loading-spinner"></div>
@@ -120,6 +133,11 @@ export default function RunsPage() {
                                         </h3>
                                         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
                                             <span style={{ fontFamily: 'var(--font-mono)', opacity: 0.7 }}>#{run.id.substring(0, 8)}</span>
+                                            <span>•</span>
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                                                {getBrowserIcon(run.browser)}
+                                                <span style={{ textTransform: 'capitalize' }}>{run.browser || 'chromium'}</span>
+                                            </span>
                                             <span>•</span>
                                             <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                                                 <Clock size={14} />

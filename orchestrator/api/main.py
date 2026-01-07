@@ -8,7 +8,7 @@ from datetime import datetime
 import subprocess
 import sys
 import os
-from typing import List
+from typing import List, Optional
 from pydantic import BaseModel
 from .models import TestSpec, TestRun, CreateSpecRequest, UpdateSpecRequest
 from . import dashboard, settings
@@ -104,13 +104,16 @@ def list_runs():
             test_name = None
             steps_completed = 0
             total = 0
+            browser = "chromium" # Default browser
+            plan_data = {} # To store plan data if available
             
             # 1. Try to get Plan info
             if plan_file.exists():
                 try:
-                    plan = json.loads(plan_file.read_text())
-                    test_name = plan.get("testName")
-                    total = len(plan.get("steps", []))
+                    plan_data = json.loads(plan_file.read_text())
+                    test_name = plan_data.get("testName")
+                    total = len(plan_data.get("steps", []))
+                    browser = plan_data.get("browser", "chromium") # Read browser from plan
                 except:
                     pass
             
@@ -134,7 +137,8 @@ def list_runs():
                 status=status,
                 test_name=test_name,
                 steps_completed=steps_completed,
-                total_steps=total
+                total_steps=total,
+                browser=browser # Pass the determined browser
             ))
 
     return runs
@@ -203,10 +207,10 @@ def get_run(id: str):
 
     return data
 
-def execute_run_task(spec_path: str, run_dir: str, try_code_path: str = None):
+def execute_run_task(spec_path: str, run_dir: str, try_code_path: str = None, browser: str = "chromium"):
     # Run the CLI
     # We use python from current environment
-    cmd = [sys.executable, "orchestrator/cli.py", spec_path, "--run-dir", run_dir]
+    cmd = [sys.executable, "orchestrator/cli.py", spec_path, "--run-dir", run_dir, "--browser", browser]
     
     if try_code_path:
         cmd.extend(["--try-code", try_code_path])
@@ -219,6 +223,7 @@ def execute_run_task(spec_path: str, run_dir: str, try_code_path: str = None):
 
 class RunRequest(BaseModel):
     spec_name: str
+    browser: Optional[str] = "chromium"
 
 @app.post("/runs")
 def create_run(request: RunRequest, background_tasks: BackgroundTasks):
@@ -304,7 +309,7 @@ def create_run(request: RunRequest, background_tasks: BackgroundTasks):
     # Log initial status
     (run_dir / "status.txt").write_text("pending")
     
-    # Trigger execution
-    background_tasks.add_task(execute_run_task, str(spec_path), str(run_dir), try_code_path)
+    # Run in background
+    background_tasks.add_task(execute_run_task, str(spec_path), str(run_dir), try_code_path, request.browser)
     
-    return {"status": "started", "id": run_id}
+    return {"id": run_id, "status": "started"}
