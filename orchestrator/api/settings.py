@@ -34,8 +34,11 @@ def get_settings():
             if api_key:
                 settings["api_key"] = api_key[:4] + "*" * (len(api_key) - 8) + api_key[-4:]
             
-            # Infer provider
-            if "z.ai" in settings.get("base_url", ""):
+            # Infer provider based on base_url
+            base_url_lower = settings.get("base_url", "").lower()
+            if "openrouter.ai" in base_url_lower:
+                settings["llm_provider"] = "openrouter"
+            elif "z.ai" in base_url_lower:
                  settings["llm_provider"] = "zai"
             else:
                  settings["llm_provider"] = "anthropic"

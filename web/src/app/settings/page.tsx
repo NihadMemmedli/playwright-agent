@@ -28,10 +28,31 @@ export default function SettingsPage() {
             });
     }, []);
 
+
     const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
         const { name, value } = e.target;
-        setSettings(prev => ({ ...prev, [name]: value }));
+
+        // Auto-populate base_url and model when provider changes
+        if (name === 'llm_provider') {
+            const updates: any = { [name]: value };
+
+            if (value === 'openrouter') {
+                updates.base_url = 'https://openrouter.ai/api';
+                updates.model_name = 'meta-llama/llama-3.2-3b-instruct:free';
+            } else if (value === 'anthropic') {
+                updates.base_url = 'https://api.anthropic.com';
+                updates.model_name = 'claude-3-5-sonnet-20240620';
+            } else if (value === 'zai') {
+                updates.base_url = 'https://api.z.ai/api/anthropic';
+                updates.model_name = 'glm-4.7';
+            }
+
+            setSettings(prev => ({ ...prev, ...updates }));
+        } else {
+            setSettings(prev => ({ ...prev, [name]: value }));
+        }
     };
+
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -106,6 +127,7 @@ export default function SettingsPage() {
                             className="input has-icon"
                         >
                             <option value="anthropic">Anthropic (Claude)</option>
+                            <option value="openrouter">OpenRouter (Free Models Available)</option>
                             <option value="zai">Z.ai (Custom Proxy)</option>
                             <option value="custom">Custom</option>
                         </select>
@@ -123,7 +145,7 @@ export default function SettingsPage() {
                             name="api_key"
                             value={settings.api_key}
                             onChange={handleChange}
-                            placeholder="sk-..."
+                            placeholder={settings.llm_provider === 'openrouter' ? 'sk-or-v1-...' : 'sk-...'}
                             className="input has-icon"
                             style={{ paddingRight: '2.5rem' }}
                         />
@@ -152,10 +174,19 @@ export default function SettingsPage() {
                             name="base_url"
                             value={settings.base_url}
                             onChange={handleChange}
-                            placeholder="https://api.anthropic.com"
+                            placeholder={settings.llm_provider === 'openrouter' ? 'https://openrouter.ai/api' : 'https://api.anthropic.com'}
                             className="input has-icon"
                         />
                     </div>
+                    {settings.llm_provider === 'openrouter' && (
+                        <p className="helper-text" style={{ marginTop: '0.5rem' }}>
+                            🎁 Use <strong>https://openrouter.ai/api</strong> to access free models.
+                            <a href="https://openrouter.ai/models" target="_blank" rel="noopener noreferrer"
+                                style={{ color: 'var(--primary)', textDecoration: 'underline', marginLeft: '0.25rem' }}>
+                                Browse available models
+                            </a>
+                        </p>
+                    )}
                 </div>
 
                 <div className="form-group">
@@ -169,10 +200,21 @@ export default function SettingsPage() {
                             name="model_name"
                             value={settings.model_name}
                             onChange={handleChange}
-                            placeholder="claude-3-5-sonnet-20240620"
+                            placeholder={
+                                settings.llm_provider === 'openrouter'
+                                    ? 'meta-llama/llama-3.2-3b-instruct:free'
+                                    : 'claude-3-5-sonnet-20240620'
+                            }
                             className="input has-icon"
                         />
                     </div>
+                    {settings.llm_provider === 'openrouter' && (
+                        <p className="helper-text" style={{ marginTop: '0.5rem' }}>
+                            💡 Free models: <code>meta-llama/llama-3.2-3b-instruct:free</code>,
+                            <code>google/gemini-2.0-flash-exp:free</code>,
+                            <code>microsoft/phi-3-mini-128k-instruct:free</code>
+                        </p>
+                    )}
                 </div>
 
                 <div style={{ paddingTop: '1.5rem', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>

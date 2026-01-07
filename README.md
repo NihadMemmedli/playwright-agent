@@ -127,6 +127,38 @@ Ensure your `~/.claude/settings.json` is configured as follows:
 }
 ```
 
+#### Alternative: OpenRouter (Free Models Available)
+
+[OpenRouter.ai](https://openrouter.ai) provides access to **free LLM models** through an Anthropic-compatible API. This is a great option for testing and development without costs.
+
+**Setup Steps:**
+1. Sign up at [https://openrouter.ai](https://openrouter.ai) (free tier available)
+2. Get your API key from [https://openrouter.ai/keys](https://openrouter.ai/keys)
+3. Configure in the Settings UI or manually edit `~/.claude/settings.json`:
+
+```json
+{
+  "env": {
+    "ANTHROPIC_AUTH_TOKEN": "sk-or-v1-your-openrouter-key-here",
+    "ANTHROPIC_BASE_URL": "https://openrouter.ai/api",
+    "ANTHROPIC_DEFAULT_SONNET_MODEL": "meta-llama/llama-3.2-3b-instruct:free"
+  }
+}
+```
+
+**Popular Free Models:**
+| Model | Provider | Context | Best For |
+|-------|----------|---------|----------|
+| `meta-llama/llama-3.2-3b-instruct:free` | Meta | 131k | General tasks |
+| `google/gemini-2.0-flash-exp:free` | Google | 1M | Fast responses |
+| `microsoft/phi-3-mini-128k-instruct:free` | Microsoft | 128k | Lightweight tasks |
+| `qwen/qwen-2.5-7b-instruct:free` | Alibaba | 32k | Coding assistance |
+
+Browse all available models: [https://openrouter.ai/models](https://openrouter.ai/models)
+
+> **Note**: Free models have rate limits. For production use, consider paid models or Anthropic direct.
+
+
 ## 📖 Usage
 
 ### Convert a Test Spec
