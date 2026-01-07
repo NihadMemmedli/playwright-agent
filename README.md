@@ -73,23 +73,37 @@ After execution, check the `runs/` directory for:
 
 ### Setup
 
+### ⚡ Quickstart
+
+Get up and running in minutes with our automated setup.
+
 ```bash
 # 1. Clone the repository
 git clone https://github.com/your-username/playwright-agent.git
 cd playwright-agent
 
-# 2. Install the package (and Python dependencies)
-cd orchestrator
+# 2. Run Setup (installs Python, Playwright, Node.js dependencies)
+make setup
+
+# 3. Start the Dashboard
+make dev
+```
+**That's it!** Access the dashboard at http://localhost:3000
+
+#### Manual Setup
+If you prefer manual installation:
+
+```bash
+# 1. Install Python dependencies
 python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
-cd ..
+source venv/bin/activate
 pip install -e .
 
-# 3. Install Node.js dependencies
-npm install @playwright/test --save-dev
+# 2. Install PlaywrightBrowsers
+npx playwright install
 
-# 4. Install Playwright browsers
-npx playwright install chromium
+# 3. Install Web UI dependencies
+cd web && npm install
 ```
 
 ### Configuration
