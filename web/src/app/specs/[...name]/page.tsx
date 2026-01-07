@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { ArrowLeft, Edit, Save, Play } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
+import SpecBuilder from '@/components/SpecBuilder';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
@@ -20,6 +21,7 @@ export default function SpecDetailPage() {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    const [mode, setMode] = useState<'code' | 'visual'>('code');
 
     useEffect(() => {
         if (!decodedName) return;
@@ -48,6 +50,7 @@ export default function SpecDetailPage() {
             if (res.ok) {
                 setOriginalContent(content);
                 setIsEditing(false);
+                setMode('code'); // Optional: switch back to code view after save? Maybe keep it.
             } else {
                 alert('Failed to save');
             }
@@ -76,6 +79,8 @@ export default function SpecDetailPage() {
 
     if (loading) return <div className="container">Loading...</div>;
 
+    const hasChanges = content !== originalContent;
+
     return (
         <div className="container">
             <Link href="/specs" className="link-hover" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '2rem', color: 'var(--text-secondary)' }}>
@@ -87,57 +92,99 @@ export default function SpecDetailPage() {
                     <h1 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>{decodedName}</h1>
                     <p style={{ color: 'var(--text-secondary)' }}>View and run test specification.</p>
                 </div>
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                    {isEditing && (
+                <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                    <div style={{ background: 'var(--surface)', borderRadius: 'var(--radius)', padding: '4px', display: 'flex', border: '1px solid var(--border)', marginRight: '1rem' }}>
+                        <button
+                            onClick={() => setMode('code')}
+                            style={{
+                                padding: '4px 12px',
+                                background: mode === 'code' ? 'var(--primary)' : 'transparent',
+                                color: mode === 'code' ? 'white' : 'var(--text-secondary)',
+                                borderRadius: '4px',
+                                border: 'none',
+                                fontSize: '0.8rem',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Code
+                        </button>
+                        <button
+                            onClick={() => {
+                                setMode('visual');
+                                setIsEditing(true); // Visual mode implies editing
+                            }}
+                            style={{
+                                padding: '4px 12px',
+                                background: mode === 'visual' ? 'var(--primary)' : 'transparent',
+                                color: mode === 'visual' ? 'white' : 'var(--text-secondary)',
+                                borderRadius: '4px',
+                                border: 'none',
+                                fontSize: '0.8rem',
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Visual
+                        </button>
+                    </div>
+
+                    {(isEditing || hasChanges) && (
                         <button className="btn btn-primary" onClick={handleSave} disabled={saving}>
                             {saving ? 'Saving...' : <><Save size={18} /> Save</>}
                         </button>
                     )}
-                    <button className="btn btn-secondary" onClick={() => {
-                        if (isEditing) {
-                            setContent(originalContent); // Reset
-                            setIsEditing(false);
-                        } else {
-                            setIsEditing(true);
-                        }
-                    }}>
-                        {isEditing ? 'Cancel' : <><Edit size={18} /> Edit</>}
-                    </button>
+
+                    {mode === 'code' && (
+                        <button className="btn btn-secondary" onClick={() => {
+                            if (isEditing) {
+                                setContent(originalContent); // Reset
+                                setIsEditing(false);
+                            } else {
+                                setIsEditing(true);
+                            }
+                        }}>
+                            {isEditing ? 'Cancel' : <><Edit size={18} /> Edit</>}
+                        </button>
+                    )}
+
                     <button className="btn btn-primary" onClick={runTest}>
                         <Play size={18} /> Run Test
                     </button>
                 </div>
             </header>
 
-            <div className="card" style={{ height: 'calc(100vh - 250px)', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div className="card" style={{ height: 'calc(100vh - 250px)', overflow: 'hidden', display: 'flex', flexDirection: 'column', padding: 0 }}>
                 <div style={{ flex: 1, overflow: 'auto', background: 'var(--code-bg)', borderRadius: 'var(--radius)' }}>
-                    {isEditing ? (
-                        <textarea
-                            value={content}
-                            onChange={e => setContent(e.target.value)}
-                            style={{
-                                width: '100%',
-                                height: '100%',
-                                background: 'var(--code-bg)',
-                                color: '#e6edf3',
-                                border: 'none',
-                                padding: '1.5rem',
-                                fontFamily: 'var(--font-mono)',
-                                fontSize: '0.9rem',
-                                resize: 'none',
-                                outline: 'none'
-                            }}
-                        />
+                    {mode === 'visual' ? (
+                        <SpecBuilder content={content} onChange={setContent} />
                     ) : (
-                        <SyntaxHighlighter
-                            language="markdown"
-                            style={vscDarkPlus}
-                            customStyle={{ margin: 0, padding: '1.5rem', fontSize: '0.9rem', background: 'var(--code-bg)', minHeight: '100%' }}
-                            showLineNumbers={true}
-                            wrapLines={true}
-                        >
-                            {content || ''}
-                        </SyntaxHighlighter>
+                        isEditing ? (
+                            <textarea
+                                value={content}
+                                onChange={e => setContent(e.target.value)}
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    background: 'var(--code-bg)',
+                                    color: '#e6edf3',
+                                    border: 'none',
+                                    padding: '1.5rem',
+                                    fontFamily: 'var(--font-mono)',
+                                    fontSize: '0.9rem',
+                                    resize: 'none',
+                                    outline: 'none'
+                                }}
+                            />
+                        ) : (
+                            <SyntaxHighlighter
+                                language="markdown"
+                                style={vscDarkPlus}
+                                customStyle={{ margin: 0, padding: '1.5rem', fontSize: '0.9rem', background: 'var(--code-bg)', minHeight: '100%' }}
+                                showLineNumbers={true}
+                                wrapLines={true}
+                            >
+                                {content || ''}
+                            </SyntaxHighlighter>
+                        )
                     )}
                 </div>
             </div>
