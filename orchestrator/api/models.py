@@ -21,3 +21,18 @@ class CreateSpecRequest(BaseModel):
 
 class UpdateSpecRequest(BaseModel):
     content: str
+
+class SpecMetadata(BaseModel):
+    tags: List[str] = []
+    description: Optional[str] = None
+    author: Optional[str] = None
+    lastModified: Optional[str] = None
+
+class UpdateMetadataRequest(BaseModel):
+    tags: Optional[List[str]] = None
+    description: Optional[str] = None
+    author: Optional[str] = None
+
+class BulkRunRequest(BaseModel):
+    spec_names: List[str]
+    browser: str = "chromium"

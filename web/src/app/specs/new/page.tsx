@@ -1,13 +1,16 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, Save } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import TagEditor from '@/components/TagEditor';
 
 export default function NewSpecPage() {
     const router = useRouter();
     const [name, setName] = useState('');
     const [content, setContent] = useState('');
+    const [tags, setTags] = useState<string[]>([]);
+    const [allTags, setAllTags] = useState<string[]>([]);
     const [loading, setLoading] = useState(false);
 
     // Default template
@@ -25,9 +28,20 @@ export default function NewSpecPage() {
 - [Expected result]
 `;
 
-    useState(() => {
+    useEffect(() => {
         setContent(template);
-    });
+        // Fetch all existing tags for autocomplete
+        fetch('http://localhost:8001/spec-metadata')
+            .then(res => res.json())
+            .then(metadata => {
+                const tagsSet = new Set<string>();
+                Object.values(metadata).forEach((meta: any) => {
+                    meta.tags?.forEach((tag: string) => tagsSet.add(tag));
+                });
+                setAllTags(Array.from(tagsSet).sort());
+            })
+            .catch(err => console.error('Failed to load tags:', err));
+    }, []);
 
     const handleSave = async () => {
         if (!name || !content) {
@@ -49,6 +63,14 @@ export default function NewSpecPage() {
             });
 
             if (res.ok) {
+                // Save tags if any
+                if (tags.length > 0) {
+                    await fetch(`http://localhost:8001/spec-metadata/${name}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ tags })
+                    });
+                }
                 router.push('/specs');
             } else {
                 alert('Failed to save spec');
@@ -97,7 +119,17 @@ export default function NewSpecPage() {
                     />
                 </div>
 
-                <div className="card" style={{ height: 'calc(100vh - 300px)', display: 'flex', flexDirection: 'column' }}>
+                <div className="card">
+                    <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 600, fontSize: '0.95rem', color: 'var(--text)' }}>Tags</label>
+                    <TagEditor
+                        tags={tags}
+                        onTagsChange={setTags}
+                        allTags={allTags}
+                        placeholder="Add tags (smoke, p0, auth...)"
+                    />
+                </div>
+
+                <div className="card" style={{ height: 'calc(100vh - 450px)', display: 'flex', flexDirection: 'column' }}>
                     <label style={{ display: 'block', marginBottom: '0.75rem', fontWeight: 600, fontSize: '0.95rem', color: 'var(--text)' }}>Content</label>
                     <textarea
                         value={content}

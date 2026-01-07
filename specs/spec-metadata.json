@@ -1,0 +1,82 @@
+{
+  "basics/simple_navigation.md": {
+    "tags": [
+      "smoke",
+      "p0",
+      "stable"
+    ],
+    "description": "Basic page navigation test",
+    "author": "System",
+    "lastModified": "2026-01-07T23:53:00Z"
+  },
+  "basics/ui_controls.md": {
+    "tags": [
+      "smoke",
+      "regression"
+    ],
+    "description": "UI controls interaction test",
+    "author": "System",
+    "lastModified": "2026-01-07T23:53:00Z"
+  },
+  "auth/login_flow.md": {
+    "tags": [
+      "auth",
+      "critical",
+      "p0"
+    ],
+    "description": "User login flow validation",
+    "author": "System",
+    "lastModified": "2026-01-07T23:53:00Z"
+  },
+  "auth/form_validation.md": {
+    "tags": [
+      "auth",
+      "p1",
+      "validation"
+    ],
+    "description": "Form validation testing",
+    "author": "System",
+    "lastModified": "2026-01-07T23:53:00Z"
+  },
+  "advanced/dynamic_content.md": {
+    "tags": [
+      "advanced",
+      "dynamic",
+      "p1",
+      "test-tag"
+    ],
+    "description": "Dynamic content handling test",
+    "author": "System",
+    "lastModified": "2026-01-08T00:03:07.363700"
+  },
+  "advanced/self_healing_demo.md": {
+    "tags": [
+      "demo",
+      "self-healing",
+      "p2"
+    ],
+    "description": "Self-healing capabilities demonstration",
+    "author": "System",
+    "lastModified": "2026-01-07T23:53:00Z"
+  },
+  "workflows/auth_workflow.md": {
+    "tags": [
+      "workflow",
+      "auth",
+      "p0"
+    ],
+    "description": "Complete authentication workflow",
+    "author": "System",
+    "lastModified": "2026-01-07T23:53:00Z"
+  },
+  "workflows/ecommerce_cart.md": {
+    "tags": [
+      "workflow",
+      "ecommerce",
+      "p1"
+    ],
+    "description": "E-commerce cart workflow test",
+    "author": "System",
+    "lastModified": "2026-01-07T23:53:00Z"
+  }
+}

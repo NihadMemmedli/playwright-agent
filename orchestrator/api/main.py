@@ -10,12 +10,13 @@ import sys
 import os
 from typing import List, Optional
 from pydantic import BaseModel
-from .models import TestSpec, TestRun, CreateSpecRequest, UpdateSpecRequest
+from .models import TestSpec, TestRun, CreateSpecRequest, UpdateSpecRequest, SpecMetadata, UpdateMetadataRequest, BulkRunRequest
 from . import dashboard, settings
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 SPECS_DIR = BASE_DIR / "specs"
 RUNS_DIR = BASE_DIR / "runs"
+METADATA_FILE = SPECS_DIR / "spec-metadata.json"
 
 app = FastAPI(title="Playwright Agent API")
 
@@ -207,6 +208,17 @@ def get_run(id: str):
 
     return data
 
+import asyncio
+
+# Limit concurrent test executions to prevent resource exhaustion
+# Initialized in startup_event
+EXECUTION_SEMAPHORE: Optional[asyncio.Semaphore] = None
+
+@app.on_event("startup")
+async def startup_event():
+    global EXECUTION_SEMAPHORE
+    EXECUTION_SEMAPHORE = asyncio.Semaphore(2)
+
 def execute_run_task(spec_path: str, run_dir: str, try_code_path: str = None, browser: str = "chromium"):
     # Run the CLI
     # We use python from current environment
@@ -219,7 +231,28 @@ def execute_run_task(spec_path: str, run_dir: str, try_code_path: str = None, br
     log_file = Path(run_dir) / "execution.log"
     
     with open(log_file, "w") as f:
+        # Note: subprocess.run is blocking, but we run it in a thread pool via the wrapper
         subprocess.run(cmd, cwd=BASE_DIR, stdout=f, stderr=subprocess.STDOUT)
+
+async def execute_run_task_wrapper(spec_path: str, run_dir: str, try_code_path: str = None, browser: str = "chromium"):
+    """
+    Async wrapper that respects the concurrency semaphore.
+    """
+    global EXECUTION_SEMAPHORE
+    if EXECUTION_SEMAPHORE is None:
+        EXECUTION_SEMAPHORE = asyncio.Semaphore(2)
+        
+    async with EXECUTION_SEMAPHORE:
+        loop = asyncio.get_event_loop()
+        # Run the blocking execute_run_task in a thread pool
+        # This allows other background tasks to wait on the semaphore without blocking the event loop
+        await loop.run_in_executor(None, execute_run_task, spec_path, run_dir, try_code_path, browser)
+        
+        # Update status to completed if it hasn't been set by the task itself
+        status_file = Path(run_dir) / "status.txt"
+        if status_file.exists() and status_file.read_text() == "pending":
+            # If the log exists, we can try to guess status, but usually the CLI writes its own status
+            pass
 
 class RunRequest(BaseModel):
     spec_name: str
@@ -236,13 +269,14 @@ def create_run(request: RunRequest, background_tasks: BackgroundTasks):
     run_dir = RUNS_DIR / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     
-    # Optimistic: Check for existing code to try
+def get_try_code_path(spec_name: str, spec_path: Path) -> Optional[str]:
+    """Find existing code for a spec to avoid regeneration."""
     try_code_path = None
-    
-    # Extract Test Name from Spec for legacy matching
-    spec_content = spec_path.read_text()
     spec_test_name = None
-    for line in spec_content.splitlines():
+    
+    # Extract test name from markdown if possible
+    content = spec_path.read_text()
+    for line in content.split("\n"):
         if line.startswith("# "):
             spec_test_name = line.replace("# ", "").replace("Test:", "").strip()
             break
@@ -263,7 +297,7 @@ def create_run(request: RunRequest, background_tasks: BackgroundTasks):
                     
                     match = False
                     # Check 1: Exact Spec Filename (New runs)
-                    if plan.get("specFileName") == request.spec_name:
+                    if plan.get("specFileName") == spec_name:
                         match = True
                     # Check 2: Test Name Matching (Legacy runs)
                     elif spec_test_name and plan.get("testName"):
@@ -287,29 +321,121 @@ def create_run(request: RunRequest, background_tasks: BackgroundTasks):
                                  break
                 except:
                     pass
+            if try_code_path: break
         
     # 2. Key heuristic: Check typical generated file path if not found in runs
     if not try_code_path:
-        # e.g. "simple_navigation.md" -> "simple-navigation.spec.ts"
-        # We try a few variations
-        stem = spec_path.stem # simple_navigation
-        
+        stem = spec_path.stem
         candidates = [
             f"tests/generated/{stem}.spec.ts",
             f"tests/generated/{stem.replace('_', '-')}.spec.ts",
-             # Also try the directory scan if we really want to be sure
+            f"tests/{stem}.spec.ts",
         ]
-        
         for cand_str in candidates:
             cand_path = BASE_DIR / cand_str
             if cand_path.exists():
                 try_code_path = str(cand_path)
                 break
+                
+    return try_code_path
 
+@app.post("/runs")
+def create_run(request: RunRequest, background_tasks: BackgroundTasks):
+    spec_path = SPECS_DIR / request.spec_name
+    if not spec_path.exists():
+        raise HTTPException(status_code=404, detail="Spec not found")
+        
+    run_id = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    run_dir = RUNS_DIR / run_id
+    run_dir.mkdir(parents=True, exist_ok=True)
+    
+    # Save spec for reference
+    (run_dir / "spec.md").write_text(spec_path.read_text())
+    
+    # Find existing code
+    try_code_path = get_try_code_path(request.spec_name, spec_path)
+    
     # Log initial status
     (run_dir / "status.txt").write_text("pending")
     
     # Run in background
-    background_tasks.add_task(execute_run_task, str(spec_path), str(run_dir), try_code_path, request.browser)
+    background_tasks.add_task(execute_run_task_wrapper, str(spec_path), str(run_dir), try_code_path, request.browser)
     
     return {"id": run_id, "status": "started"}
+
+@app.post("/runs/bulk")
+async def create_bulk_run(request: BulkRunRequest, background_tasks: BackgroundTasks):
+    run_ids = []
+    for spec_name in request.spec_names:
+        spec_path = SPECS_DIR / spec_name
+        if not spec_path.exists():
+            continue
+            
+        run_id = datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + f"_{spec_name.replace('/', '_')}"
+        run_dir = RUNS_DIR / run_id
+        run_dir.mkdir(parents=True, exist_ok=True)
+        
+        # Save spec content for reference
+        (run_dir / "spec.md").write_text(spec_path.read_text())
+        
+        # Find existing code
+        try_code_path = get_try_code_path(spec_name, spec_path)
+        
+        # Log initial status
+        (run_dir / "status.txt").write_text("pending")
+        
+        # Add to background tasks
+        background_tasks.add_task(execute_run_task_wrapper, str(spec_path), str(run_dir), try_code_path, request.browser)
+        run_ids.append(run_id)
+        
+    return {"run_ids": run_ids, "count": len(run_ids)}
+
+# ========= Metadata Management =========
+
+def load_metadata():
+    """Load metadata from JSON file, return empty dict if not found"""
+    if not METADATA_FILE.exists():
+        return {}
+    try:
+        return json.loads(METADATA_FILE.read_text())
+    except:
+        return {}
+
+def save_metadata(metadata: dict):
+    """Save metadata to JSON file"""
+    METADATA_FILE.parent.mkdir(parents=True, exist_ok=True)
+    METADATA_FILE.write_text(json.dumps(metadata, indent=2))
+
+@app.get("/spec-metadata")
+def get_all_metadata():
+    """Get metadata for all specs"""
+    return load_metadata()
+
+@app.get("/spec-metadata/{spec_name:path}")
+def get_spec_metadata(spec_name: str):
+    """Get metadata for a specific spec"""
+    metadata = load_metadata()
+    return metadata.get(spec_name, {"tags": [], "description": None, "author": None, "lastModified": None})
+
+@app.put("/spec-metadata/{spec_name:path}")
+def update_spec_metadata(spec_name: str, request: UpdateMetadataRequest):
+    """Update metadata for a specific spec"""
+    metadata = load_metadata()
+    
+    # Get existing or create new
+    if spec_name not in metadata:
+        metadata[spec_name] = {"tags": [], "description": None, "author": None, "lastModified": None}
+    
+    # Update fields if provided
+    if request.tags is not None:
+        metadata[spec_name]["tags"] = request.tags
+    if request.description is not None:
+        metadata[spec_name]["description"] = request.description
+    if request.author is not None:
+        metadata[spec_name]["author"] = request.author
+    
+    # Always update lastModified
+    metadata[spec_name]["lastModified"] = datetime.now().isoformat()
+    
+    save_metadata(metadata)
+    return {"status": "success", "metadata": metadata[spec_name]}
