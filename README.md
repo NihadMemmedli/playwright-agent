@@ -180,7 +180,30 @@ npx playwright test
 
 # Run specific file
 npx playwright test tests/generated/your-test.spec.ts
+# Run specific file
+npx playwright test tests/generated/your-test.spec.ts
 ```
+
+## 🔐 Secure Credential Handling
+
+The agent supports secure handling of sensitive data (passwords, API keys) using environment variables.
+
+1.  **Create a `.env` file** in the project root:
+    ```env
+    LOGIN_USERNAME=tomsmith
+    LOGIN_PASSWORD=SuperSecretPassword!
+    ```
+
+2.  **Use placeholders** in your Markdown spec:
+    ```markdown
+    1. Enter username "{{LOGIN_USERNAME}}"
+    2. Enter password "{{LOGIN_PASSWORD}}"
+    ```
+
+3.  **Run the agent**. It will:
+    -   Substitite the values at runtime for execution.
+    -   **Scrub** the secrets from execution logs and traces.
+    -   Generate code using `process.env.LOGIN_PASSWORD` (no hardcoded secrets).
 
 ## 📝 Test Specifications
 
