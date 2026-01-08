@@ -7,8 +7,9 @@ import {
 } from 'recharts';
 import {
     FileText, CheckCircle2, PlayCircle, BarChart2, ArrowUpRight,
-    Activity, ArrowRight, Plus
+    Activity, ArrowRight, Plus, UploadCloud
 } from 'lucide-react';
+import { useRef } from 'react';
 
 export default function Home() {
     // Define proper interface for state
@@ -30,6 +31,47 @@ export default function Home() {
         errors: []
     });
     const [loading, setLoading] = useState(true);
+
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const handleImportClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files?.[0]) return;
+
+        const file = e.target.files[0];
+        setUploading(true);
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        try {
+            const res = await fetch('http://localhost:8001/import/testrail', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!res.ok) throw new Error('Upload failed');
+
+            const result = await res.json();
+            alert(`Successfully imported ${result.count} specs!`);
+
+            // Refresh stats
+            fetch('http://localhost:8001/dashboard')
+                .then(res => res.json())
+                .then(data => setStats(data));
+
+        } catch (error) {
+            console.error(error);
+            alert('Failed to import specs');
+        } finally {
+            setUploading(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
 
     useEffect(() => {
         fetch('http://localhost:8001/dashboard')
@@ -249,6 +291,21 @@ export default function Home() {
                         <h3 style={{ fontWeight: 600 }}>View Test Runs</h3>
                         <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>Check results of recent executions.</p>
                     </Link>
+
+                    <div onClick={handleImportClick} className="card hover-card" style={{ cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: '0.5rem', color: 'inherit', padding: '1.5rem' }}>
+                        <div style={{ width: 40, height: 40, background: 'var(--surface-hover)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem', color: 'var(--primary)' }}>
+                            <UploadCloud size={20} />
+                        </div>
+                        <h3 style={{ fontWeight: 600 }}>Import from TestRail</h3>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem' }}>{uploading ? 'Importing...' : 'Upload CSV export from TestRail'}</p>
+                        <input
+                            type="file"
+                            ref={fileInputRef}
+                            hidden
+                            accept=".csv"
+                            onChange={handleFileChange}
+                        />
+                    </div>
                 </div>
             </section>
         </div>

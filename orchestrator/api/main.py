@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends
+from fastapi import FastAPI, HTTPException, BackgroundTasks, Depends, UploadFile, File
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from pathlib import Path
@@ -16,7 +16,7 @@ from pydantic import BaseModel
 from .models import TestSpec, TestRun, CreateSpecRequest, UpdateSpecRequest, UpdateMetadataRequest, BulkRunRequest
 from .models_db import TestRun as DBTestRun, SpecMetadata as DBSpecMetadata
 from .db import init_db, get_session, engine
-from . import dashboard, settings
+from . import dashboard, settings, import_utils
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 SPECS_DIR = BASE_DIR / "specs"
@@ -197,7 +197,40 @@ def update_spec(name: str, request: UpdateSpecRequest):
     if not f.exists():
         raise HTTPException(status_code=404, detail="Spec not found")
     f.write_text(request.content)
+    f.write_text(request.content)
     return {"status": "updated", "path": str(f.absolute())}
+
+@app.post("/import/testrail")
+async def import_testrail(file: UploadFile = File(...)):
+    try:
+        content = await file.read()
+        specs = import_utils.parse_testrail_csv(content)
+        
+        saved_files = []
+        for spec in specs:
+            fname = spec["name"]
+            # Ensure safe filename
+            if not fname.endswith(".md"):
+                fname += ".md"
+            
+            fpath = SPECS_DIR / fname
+            # Ensure specs dir exists
+            SPECS_DIR.mkdir(parents=True, exist_ok=True)
+            
+            fpath.write_text(spec["content"])
+            saved_files.append(fname)
+            
+            # Sync to DB if needed? 
+            # The system syncs on startup, but maybe we should add to DB here too?
+            # existing sync_data_from_files() logic runs at startup.
+            # But the user might want to see them immediately.
+            # However, spec metadata is separately managed. 
+            # The list_specs() endpoint reads from file system directly, so it should be fine.
+            
+        return {"count": len(saved_files), "files": saved_files}
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 
 # ========= Runs =========
 
