@@ -30,7 +30,12 @@ def setup_claude_env():
         if key not in os.environ:  # Don't override existing
             os.environ[key] = value
 
+    # Force Headed mode for visibility
+    os.environ["HEADLESS"] = "false"
+    os.environ["PLAYWRIGHT_HEADLESS"] = "false"
+
     return env_vars
+
 
 
 if __name__ == "__main__":

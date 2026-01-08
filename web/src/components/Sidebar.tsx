@@ -10,6 +10,7 @@ export function Sidebar() {
         { href: '/', label: 'Overview', icon: Home },
         { href: '/dashboard', label: 'Reporting', icon: BarChart2 },
         { href: '/specs', label: 'Test Specs', icon: FileText },
+        { href: '/agents', label: 'Agents', icon: Bot }, // Re-using Bot icon or similar
         { href: '/runs', label: 'Test Runs', icon: Play },
         { href: '/settings', label: 'Settings', icon: Settings },
     ];

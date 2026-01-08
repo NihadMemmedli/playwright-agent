@@ -33,3 +33,30 @@ class SpecMetadata(SQLModel, table=True):
     @tags.setter
     def tags(self, value: List[str]):
         self.tags_json = json.dumps(value)
+
+class AgentRun(SQLModel, table=True):
+    id: str = Field(primary_key=True)
+    agent_type: str
+    config_json: str = "{}"
+    result_json: Optional[str] = None
+    status: str = "running" # running, completed, failed
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    
+    @property
+    def config(self) -> dict:
+        try: return json.loads(self.config_json)
+        except: return {}
+        
+    @config.setter
+    def config(self, value: dict):
+        self.config_json = json.dumps(value)
+        
+    @property
+    def result(self) -> Optional[dict]:
+        if not self.result_json: return None
+        try: return json.loads(self.result_json)
+        except: return None
+        
+    @result.setter
+    def result(self, value: dict):
+        self.result_json = json.dumps(value)

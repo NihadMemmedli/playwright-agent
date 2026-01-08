@@ -9,12 +9,12 @@ import subprocess
 import sys
 import os
 import asyncio
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from sqlmodel import Session, select
 from pydantic import BaseModel
 
 from .models import TestSpec, TestRun, CreateSpecRequest, UpdateSpecRequest, UpdateMetadataRequest, BulkRunRequest
-from .models_db import TestRun as DBTestRun, SpecMetadata as DBSpecMetadata
+from .models_db import TestRun as DBTestRun, SpecMetadata as DBSpecMetadata, AgentRun
 from .db import init_db, get_session, engine
 from . import dashboard, settings, import_utils
 
@@ -528,3 +528,100 @@ def update_spec_metadata(spec_name: str, request: UpdateMetadataRequest, session
         "author": m.author,
         "lastModified": m.last_modified.isoformat()
     }}
+
+# ========= Agents =========
+
+class AgentRunRequest(BaseModel):
+    agent_type: str  # "exploratory" or "writer"
+    config: Dict[str, Any]
+
+async def execute_agent_background(run_id: str, agent_type: str, config: dict):
+    from .db import engine
+    from sqlmodel import Session
+    from .models_db import AgentRun
+
+    
+    try:
+        from orchestrator.agents.exploratory_agent import ExploratoryAgent
+        from orchestrator.agents.spec_writer_agent import SpecWriterAgent
+        
+        result = {}
+        if agent_type == "exploratory":
+            agent = ExploratoryAgent()
+            result = await agent.run(config)
+        elif agent_type == "writer":
+            agent = SpecWriterAgent()
+            result = await agent.run(config)
+            
+        # Update DB success
+        with Session(engine) as session:
+            run = session.get(AgentRun, run_id)
+            if run:
+                run.status = "completed"
+                run.result = result
+                session.add(run)
+                session.commit()
+                
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        # Update DB failure
+        with Session(engine) as session:
+            run = session.get(AgentRun, run_id)
+            if run:
+                run.status = "failed"
+                run.result = {"error": str(e)}
+                session.add(run)
+                session.commit()
+
+@app.post("/api/agents/runs")
+async def run_agent(request: AgentRunRequest, background_tasks: BackgroundTasks, session: Session = Depends(get_session)):
+    """Run an autonomous agent in background"""
+    
+    # Create DB Record
+    run_id = str(uuid.uuid4())
+    run = AgentRun(
+        id=run_id,
+        agent_type=request.agent_type,
+        config_json=json.dumps(request.config),
+        status="running"
+    )
+    session.add(run)
+    session.commit()
+    
+    # Start Background Task
+    background_tasks.add_task(execute_agent_background, run_id, request.agent_type, request.config)
+            
+    return {"status": "started", "run_id": run_id}
+
+@app.get("/api/agents/runs")
+def list_agent_runs(session: Session = Depends(get_session)):
+    statement = select(AgentRun).order_by(AgentRun.created_at.desc())
+    runs = session.exec(statement).all()
+    # Manually serialize to handle properties
+    return [
+        {
+            "id": r.id,
+            "agent_type": r.agent_type,
+            "status": r.status,
+            "created_at": r.created_at.isoformat(),
+            "config": r.config,
+            # Don't send full result in list view if it's huge
+            "summary": r.result.get("summary") if r.result else None
+        }
+        for r in runs
+    ]
+
+@app.get("/api/agents/runs/{id}")
+def get_agent_run(id: str, session: Session = Depends(get_session)):
+    r = session.get(AgentRun, id)
+    if not r:
+        raise HTTPException(status_code=404, detail="Run not found")
+    return {
+        "id": r.id,
+        "agent_type": r.agent_type,
+        "status": r.status,
+        "created_at": r.created_at.isoformat(),
+        "config": r.config,
+        "result": r.result
+    }
