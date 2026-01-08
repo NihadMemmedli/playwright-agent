@@ -8,3 +8,6 @@ Pillow>=10.0.0
 fastapi
 uvicorn
 python-multipart
+sqlmodel
+psycopg2-binary
+alembic

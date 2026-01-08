@@ -15,6 +15,9 @@ services:
       - ANTHROPIC_AUTH_TOKEN=${ANTHROPIC_AUTH_TOKEN}
       - ANTHROPIC_BASE_URL=${ANTHROPIC_BASE_URL}
       - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-glm-4.5-air}
+      - DATABASE_URL=postgresql://postgres:postgres@db:5432/playwright_agent
+    depends_on:
+      - db
     entrypoint: python -m uvicorn orchestrator.api.main:app --host 0.0.0.0 --port 8001
     # command: uvicorn orchestrator.api.main:app --host 0.0.0.0 --port 8001
     network_mode: bridge
@@ -31,3 +34,19 @@ services:
     depends_on:
       - backend
     network_mode: bridge
+
+  db:
+    image: postgres:15-alpine
+    container_name: playwright-agent-db
+    ports:
+      - "5434:5432"
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=playwright_agent
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    network_mode: bridge
+
+volumes:
+  postgres_data:

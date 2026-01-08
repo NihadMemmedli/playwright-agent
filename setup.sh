@@ -9,6 +9,14 @@ NC='\033[0m' # No Color
 
 echo -e "${GREEN}🚀 Setting up Playwright Agent...${NC}"
 
+# 0. Prerequisite Check
+echo -e "\n${YELLOW}Checking prerequisites...${NC}"
+if ! command -v docker &> /dev/null; then
+    echo -e "${RED}Docker is not installed! Please install Docker to use the database.${NC}"
+    exit 1
+fi
+echo "Docker is installed."
+
 # 1. Python Environment
 echo -e "\n${YELLOW}Checking Python environment...${NC}"
 if [ ! -d "venv" ]; then
@@ -21,7 +29,7 @@ fi
 source venv/bin/activate
 
 # 2. Python Dependencies
-echo -e "\n${YELLOW}Installing Python dependencies...${NC}"
+echo -e "\n${YELLOW}Installing Python dependencies (including Database drivers)...${NC}"
 pip install --upgrade pip
 if [ -f "pyproject.toml" ]; then
     pip install -e .

@@ -71,6 +71,7 @@ After execution, check the `runs/` directory for:
 
 -   Python 3.13+
 -   Node.js 18+
+-   **Docker & Docker Compose** (for Database)
 -   Modern web browser (Chromium)
 -   Claude Code (for Agent SDK)
 
