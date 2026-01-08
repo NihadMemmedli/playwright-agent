@@ -8,7 +8,8 @@ import os
 import json
 from datetime import datetime
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Any, Tuple
+import typing
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -41,9 +42,12 @@ class Operator:
     def __init__(self, schema_path: str = "schemas/run.schema.json"):
         self.schema_path = schema_path
 
-    async def _substitute_env_vars(self, plan: Dict) -> Dict:
+    async def _substitute_env_vars(self, plan: Dict) -> typing.Tuple[Dict, Dict[str, str]]:
         """Recursively substitute {{VAR}} with environment variables in the plan"""
         import re
+        
+        # Map of secret_value -> {{VAR_NAME}}
+        secrets = {}
 
         def sub_recursive(item):
             if isinstance(item, dict):
@@ -57,14 +61,35 @@ class Operator:
                 for var_name in matches:
                     env_val = os.environ.get(var_name)
                     if env_val:
-                        new_val = new_val.replace(f"{{{{{var_name}}}}}", env_val)
+                        placeholder = f"{{{{{var_name}}}}}"
+                        new_val = new_val.replace(placeholder, env_val)
+                        # Store mapping for scrubbing later
+                        secrets[env_val] = placeholder
                     else:
                         print(f"⚠️ WARNING: Environment variable {var_name} not found!")
                 return new_val
             else:
                 return item
 
-        return sub_recursive(plan)
+        return sub_recursive(plan), secrets
+
+    def _scrub_secrets(self, data: Any, secrets: Dict[str, str]) -> Any:
+        """Recursively replace secret values with placeholders"""
+        if not secrets:
+            return data
+
+        if isinstance(data, dict):
+            return {k: self._scrub_secrets(v, secrets) for k, v in data.items()}
+        elif isinstance(data, list):
+            return [self._scrub_secrets(i, secrets) for i in data]
+        elif isinstance(data, str):
+            val = data
+            for secret_val, placeholder in secrets.items():
+                if secret_val in val:
+                    val = val.replace(secret_val, placeholder)
+            return val
+        else:
+            return data
 
     async def execute_plan(
         self, plan: Dict, run_dir: str = None, interactive: bool = False
@@ -81,7 +106,7 @@ class Operator:
             Dict containing execution trace
         """
         # Substitute environment variables in the plan
-        plan = await self._substitute_env_vars(plan)
+        plan, secrets = await self._substitute_env_vars(plan)
 
         if interactive:
             return await self._execute_plan_interactive(plan, run_dir)
@@ -99,6 +124,9 @@ class Operator:
         if run:
             run["specFileName"] = plan.get("specFileName")
             run["specFilePath"] = plan.get("specFilePath")
+            
+            # Scrub secrets from the run result before returning
+            run = self._scrub_secrets(run, secrets)
 
         # Validate against schema
         print("✅ Validating run against schema...")

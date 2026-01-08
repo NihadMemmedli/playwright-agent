@@ -136,6 +136,12 @@ SELECTOR MAPPING:
   - Field: page.getByLabel('...')
   - Text: page.getByText('...')
 
+SECURITY HANDLING:
+- If you see `{{VAR_NAME}}` in an input value or text:
+  - DO NOT output the raw string or the placeholder.
+  - Use `process.env.VAR_NAME || 'fallback'` in the code.
+  - Example: `await page.fill('...', process.env.LOGIN_PASSWORD || '');`
+
 Now convert the execution trace to Playwright code and return the result as JSON. No other text.
 """
         )
