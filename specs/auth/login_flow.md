@@ -6,8 +6,8 @@ Test filling and submitting a login form with valid credentials.
 ## Steps
 
 1. Go to https://the-internet.herokuapp.com/login
-2. Enter username "tomsmith"
-3. Enter password "SuperSecretPassword!"
+2. Enter username "{{LOGIN_USERNAME}}"
+3. Enter password "{{LOGIN_PASSWORD}}"
 4. Click the Login button
 5. Verify success message appears
 6. Verify we are redirected to the secure page

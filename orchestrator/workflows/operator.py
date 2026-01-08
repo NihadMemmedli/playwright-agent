@@ -41,6 +41,31 @@ class Operator:
     def __init__(self, schema_path: str = "schemas/run.schema.json"):
         self.schema_path = schema_path
 
+    async def _substitute_env_vars(self, plan: Dict) -> Dict:
+        """Recursively substitute {{VAR}} with environment variables in the plan"""
+        import re
+
+        def sub_recursive(item):
+            if isinstance(item, dict):
+                return {k: sub_recursive(v) for k, v in item.items()}
+            elif isinstance(item, list):
+                return [sub_recursive(i) for i in item]
+            elif isinstance(item, str):
+                # Find all {{VAR}} patterns
+                matches = re.findall(r"\{\{([^}]+)\}\}", item)
+                new_val = item
+                for var_name in matches:
+                    env_val = os.environ.get(var_name)
+                    if env_val:
+                        new_val = new_val.replace(f"{{{{{var_name}}}}}", env_val)
+                    else:
+                        print(f"⚠️ WARNING: Environment variable {var_name} not found!")
+                return new_val
+            else:
+                return item
+
+        return sub_recursive(plan)
+
     async def execute_plan(
         self, plan: Dict, run_dir: str = None, interactive: bool = False
     ) -> Dict:
@@ -55,6 +80,9 @@ class Operator:
         Returns:
             Dict containing execution trace
         """
+        # Substitute environment variables in the plan
+        plan = await self._substitute_env_vars(plan)
+
         if interactive:
             return await self._execute_plan_interactive(plan, run_dir)
 

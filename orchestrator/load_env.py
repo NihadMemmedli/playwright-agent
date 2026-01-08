@@ -19,7 +19,11 @@ def load_claude_settings():
 
 
 def setup_claude_env():
-    """Setup environment variables from Claude settings"""
+    """Setup environment variables from Claude settings and .env file"""
+    # Load from .env file (for secrets like LOGIN_PASSWORD)
+    from dotenv import load_dotenv, find_dotenv
+    load_dotenv(find_dotenv())
+
     env_vars = load_claude_settings()
 
     for key, value in env_vars.items():
