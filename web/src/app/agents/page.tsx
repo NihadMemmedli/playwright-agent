@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { Bot, FileText, Play, Terminal, ChevronRight, CheckCircle2, AlertTriangle, Loader2, Clock, RotateCcw, Lock, Globe, Settings, Download, List, Sparkles, Zap } from 'lucide-react';
+import { Bot, FileText, Play, Terminal, ChevronRight, CheckCircle2, AlertTriangle, Loader2, Clock, RotateCcw, Lock, Globe, Settings, Download, List, Sparkles, Zap, ArrowRight, Info } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 interface AgentRun {
@@ -687,80 +687,184 @@ export default function AgentsPage() {
                                         </div>
                                     </>
                                 ) : (
-                                    // Exploratory Result - Enhanced Display
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                    // Exploratory Result - User Friendly Display
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
                                         {!activeRun.result ? (
-                                            <div style={{ padding: '1rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '8px', color: 'var(--primary)', textAlign: 'center' }}>
-                                                <Loader2 size={24} className="spin" style={{ marginBottom: '0.5rem' }} />
-                                                <p>Loading results...</p>
+                                            <div style={{ padding: '2rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '12px', color: 'var(--primary)', textAlign: 'center' }}>
+                                                <Loader2 size={32} className="spin" style={{ marginBottom: '1rem' }} />
+                                                <p style={{ fontSize: '1rem', fontWeight: 500 }}>Loading exploration results...</p>
+                                                <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
+                                                    This may take a moment while we compile the findings.
+                                                </p>
                                             </div>
                                         ) : (
                                             <>
-                                                {/* Summary & Stats */}
-                                                <div style={{ padding: '1rem', background: 'var(--surface-hover)', borderRadius: '8px' }}>
-                                                    <h4 style={{ fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                        <Sparkles size={18} /> Summary
-                                                    </h4>
-                                                    <p>{activeRun.result.summary || 'No summary available'}</p>
-                                                    {activeRun.result.elapsed_time_minutes && (
-                                                        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.5rem' }}>
-                                                            <Clock size={12} style={{ display: 'inline', marginRight: '0.25rem' }} />
-                                                            Exploration time: {activeRun.result.elapsed_time_minutes.toFixed(1)} minutes
-                                                        </p>
-                                                    )}
+                                                {/* Main Summary Card */}
+                                                <div style={{ padding: '1.5rem', background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.1) 0%, rgba(147, 51, 234, 0.1) 100%)', borderRadius: '12px', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1rem' }}>
+                                                        <div style={{ width: '40px', height: '40px', borderRadius: '10px', background: 'var(--primary)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                                            <Sparkles size={20} style={{ color: 'white' }} />
+                                                        </div>
+                                                        <div>
+                                                            <h3 style={{ fontWeight: 700, fontSize: '1.2rem', margin: 0 }}>Exploration Complete!</h3>
+                                                            <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.5rem 0 0 0' }}>
+                                                                {activeRun.result.elapsed_time_minutes ? `Completed in ${activeRun.result.elapsed_time_minutes.toFixed(1)} minutes` : 'Completed'}
+                                                            </p>
+                                                        </div>
+                                                    </div>
+                                                    <p style={{ fontSize: '1rem', lineHeight: '1.6', margin: 0 }}>
+                                                        {activeRun.result.summary || 'The agent explored the application and discovered user flows.'}
+                                                    </p>
                                                 </div>
 
-                                        {/* Coverage */}
-                                        {activeRun.result.coverage && (
-                                            <div style={{ padding: '1rem', background: 'var(--surface-hover)', borderRadius: '8px' }}>
-                                                <h4 style={{ fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                    <Zap size={18} /> Coverage
-                                                </h4>
-                                                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '0.5rem', fontSize: '0.85rem' }}>
-                                                    <div style={{ padding: '0.5rem', background: 'var(--surface)', borderRadius: '4px' }}>
-                                                        <span style={{ color: 'var(--text-secondary)' }}>Pages:</span> {activeRun.result.coverage.pages_visited || 0}
-                                                    </div>
-                                                    <div style={{ padding: '0.5rem', background: 'var(--surface)', borderRadius: '4px' }}>
-                                                        <span style={{ color: 'var(--text-secondary)' }}>Flows:</span> {activeRun.result.coverage.flows_discovered || 0}
-                                                    </div>
-                                                    <div style={{ padding: '0.5rem', background: 'var(--surface)', borderRadius: '4px' }}>
-                                                        <span style={{ color: 'var(--text-secondary)' }}>Forms:</span> {activeRun.result.coverage.forms_interacted || 0}
-                                                    </div>
-                                                </div>
-                                                {activeRun.result.coverage.coverage_score && (
-                                                    <div style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>
-                                                        Coverage Score: {(activeRun.result.coverage.coverage_score * 100).toFixed(0)}%
+                                                {/* Key Metrics */}
+                                                {activeRun.result.coverage && (
+                                                    <div>
+                                                        <h4 style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '1rem', color: 'var(--text)' }}>
+                                                            📊 What Was Explored
+                                                        </h4>
+                                                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: '1rem' }}>
+                                                            <div style={{ padding: '1rem', background: 'var(--surface-hover)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                                                                <div style={{ fontSize: '2rem', fontWeight: 700, color: 'var(--primary)' }}>
+                                                                    {activeRun.result.coverage.pages_visited || 0}
+                                                                </div>
+                                                                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                                                                    Pages Visited
+                                                                </div>
+                                                            </div>
+                                                            <div style={{ padding: '1rem', background: 'var(--surface-hover)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                                                                <div style={{ fontSize: '2rem', fontWeight: 700, color: '#10b981' }}>
+                                                                    {activeRun.result.coverage.flows_discovered || 0}
+                                                                </div>
+                                                                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                                                                    User Flows Found
+                                                                </div>
+                                                            </div>
+                                                            <div style={{ padding: '1rem', background: 'var(--surface-hover)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                                                                <div style={{ fontSize: '2rem', fontWeight: 700, color: '#f59e0b' }}>
+                                                                    {activeRun.result.coverage.forms_interacted || 0}
+                                                                </div>
+                                                                <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                                                                    Forms Tested
+                                                                </div>
+                                                            </div>
+                                                            {activeRun.result.coverage.errors_found !== undefined && (
+                                                                <div style={{ padding: '1rem', background: 'var(--surface-hover)', borderRadius: '10px', border: '1px solid var(--border)' }}>
+                                                                    <div style={{ fontSize: '2rem', fontWeight: 700, color: activeRun.result.coverage.errors_found > 0 ? '#ef4444' : '#10b981' }}>
+                                                                        {activeRun.result.coverage.errors_found || 0}
+                                                                    </div>
+                                                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                                                                        Issues Found
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                        {activeRun.result.coverage.coverage_score !== undefined && (
+                                                            <div style={{ marginTop: '1rem', padding: '0.75rem', background: activeRun.result.coverage.coverage_score > 0.7 ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)', borderRadius: '8px', border: `1px solid ${activeRun.result.coverage.coverage_score > 0.7 ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)'}` }}>
+                                                                <span style={{ fontSize: '0.85rem', fontWeight: 500 }}>
+                                                                    Coverage Score: <strong>{(activeRun.result.coverage.coverage_score * 100).toFixed(0)}%</strong>
+                                                                    {activeRun.result.coverage.coverage_score > 0.7 ? ' ✅ Good coverage' : ' ⚠️ Consider exploring more'}
+                                                                </span>
+                                                            </div>
+                                                        )}
                                                     </div>
                                                 )}
-                                            </div>
-                                        )}
 
-                                        {/* Discovered Flows */}
-                                        {activeRun.result.discovered_flows && activeRun.result.discovered_flows.length > 0 && (
-                                            <div>
-                                                <h4 style={{ fontWeight: 600, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                                    <List size={18} /> Discovered Flows ({activeRun.result.discovered_flows.length})
-                                                </h4>
-                                                {activeRun.result.discovered_flows.map((flow: any, i: number) => (
-                                                    <div key={i} style={{ padding: '0.75rem', border: '1px solid var(--border)', background: 'var(--surface)', borderRadius: '8px', marginBottom: '0.5rem' }}>
-                                                        <div style={{ fontWeight: 600, fontSize: '0.9rem', marginBottom: '0.25rem' }}>{flow.name}</div>
-                                                        {flow.pages && (
-                                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.25rem' }}>
-                                                                Pages: {flow.pages.join(' → ')}
-                                                            </div>
-                                                        )}
-                                                        {flow.edge_cases && flow.edge_cases.length > 0 && (
-                                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                                                Edge Cases: {flow.edge_cases.join(', ')}
-                                                            </div>
-                                                        )}
+                                                {/* Discovered Flows - Clear Display */}
+                                                {activeRun.result.discovered_flows && activeRun.result.discovered_flows.length > 0 ? (
+                                                    <div>
+                                                        <h4 style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '1rem', color: 'var(--text)' }}>
+                                                            🔍 Discovered User Flows ({activeRun.result.discovered_flows.length})
+                                                        </h4>
+                                                        <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                                                            These are the complete user journeys the agent found. Each one can be turned into a test.
+                                                        </p>
+                                                        <div style={{ display: 'grid', gap: '1rem' }}>
+                                                            {activeRun.result.discovered_flows.map((flow: any, i: number) => (
+                                                                <div key={i} style={{
+                                                                    padding: '1rem',
+                                                                    background: 'var(--surface)',
+                                                                    borderRadius: '10px',
+                                                                    border: '1px solid var(--border)',
+                                                                    transition: 'all 0.2s'
+                                                                }}>
+                                                                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
+                                                                        <div style={{
+                                                                            width: '32px',
+                                                                            height: '32px',
+                                                                            borderRadius: '8px',
+                                                                            background: 'rgba(59, 130, 246, 0.1)',
+                                                                            display: 'flex',
+                                                                            alignItems: 'center',
+                                                                            justifyContent: 'center',
+                                                                            flexShrink: 0,
+                                                                            fontSize: '1.2rem'
+                                                                        }}>
+                                                                            {i + 1}
+                                                                        </div>
+                                                                        <div style={{ flex: 1 }}>
+                                                                            <h5 style={{ fontWeight: 600, fontSize: '1rem', margin: '0 0 0.5rem 0' }}>
+                                                                                {flow.name}
+                                                                            </h5>
+                                                                            {flow.happy_path && (
+                                                                                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 0.5rem 0', lineHeight: '1.5' }}>
+                                                                                    {flow.happy_path}
+                                                                                </p>
+                                                                            )}
+                                                                            {flow.pages && flow.pages.length > 0 && (
+                                                                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                                                                                    <span style={{ fontWeight: 500 }}>Pages:</span> {flow.pages.join(' → ')}
+                                                                                </div>
+                                                                            )}
+                                                                            {flow.edge_cases && flow.edge_cases.length > 0 && (
+                                                                                <div style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '6px' }}>
+                                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem', color: '#f59e0b' }}>
+                                                                                        ⚠️ Edge Cases ({flow.edge_cases.length})
+                                                                                    </div>
+                                                                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                                                                        {flow.edge_cases.join(' • ')}
+                                                                                    </div>
+                                                                                </div>
+                                                                            )}
+                                                                        </div>
+                                                                    </div>
+                                                                </div>
+                                                            ))}
+                                                        </div>
                                                     </div>
-                                                ))}
-                                            </div>
-                                        )}
+                                                ) : (
+                                                    <div style={{ padding: '2rem', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '12px', textAlign: 'center' }}>
+                                                        <h4 style={{ margin: '0 0 0.5rem 0' }}>No flows discovered</h4>
+                                                        <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', margin: 0 }}>
+                                                            The agent didn't find any complete user flows. Try increasing the time limit or exploring a different area.
+                                                        </p>
+                                                    </div>
+                                                )}
 
-                                        {/* Spec Synthesis Button */}
-                                        {activeRun.agent_type === 'exploratory' && (
+                                            {/* Next Steps */}
+                                            <div style={{ marginTop: '1.5rem', padding: '1.25rem', background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(59, 130, 246, 0.1) 100%)', borderRadius: '12px', border: '1px solid rgba(16, 185, 129, 0.2)' }}>
+                                                <h4 style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text)' }}>
+                                                    <ArrowRight size={18} style={{ color: 'var(--success)' }} /> Next Steps
+                                                </h4>
+                                                <div style={{ fontSize: '0.9rem', lineHeight: '1.6' }}>
+                                                    <p style={{ margin: '0 0 0.5rem 0', color: 'var(--text)' }}>
+                                                        <strong>1. Review the discovered flows above</strong> - Make sure they capture the user journeys you want to test
+                                                    </p>
+                                                    <p style={{ margin: '0 0 0.5rem 0', color: 'var(--text)' }}>
+                                                        <strong>2. Click "Generate Test Specs" below</strong> - This creates detailed test specifications for each flow
+                                                    </p>
+                                                    <p style={{ margin: '0 0 0.75rem 0', color: 'var(--text)' }}>
+                                                        <strong>3. Download and run the specs</strong> - Use them with the existing pipeline to generate Playwright tests
+                                                    </p>
+                                                    <div style={{ padding: '0.75rem', background: 'rgba(59, 130, 246, 0.1)', borderRadius: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                                        <Info size={14} style={{ marginRight: '0.5rem', display: 'inline', verticalAlign: 'middle' }} />
+                                                        <span style={{ fontStyle: 'italic' }}>Tip: Each discovered flow becomes a separate test spec. You can edit them before running if needed.</span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            {/* Spec Synthesis Button */}
+                                            {activeRun.agent_type === 'exploratory' && (
                                             <div style={{ display: 'flex', gap: '0.5rem' }}>
                                                 <button
                                                     onClick={handleSynthesize}
@@ -831,18 +935,21 @@ export default function AgentsPage() {
 
                                         {/* Action Trace */}
                                         {activeRun.result.action_trace && activeRun.result.action_trace.length > 0 && (
-                                            <details style={{ marginTop: '1rem' }}>
-                                                <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem' }}>
-                                                    Action Trace ({activeRun.result.action_trace.length} actions)
+                                            <details style={{ marginTop: '1.5rem' }}>
+                                                <summary style={{ cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                                    <Terminal size={16} /> What the Agent Did ({activeRun.result.action_trace.length} actions)
                                                 </summary>
-                                                <div style={{ marginTop: '0.5rem', background: '#0f0f0f', padding: '1rem', borderRadius: '8px', fontSize: '0.85rem', fontFamily: 'monospace', maxHeight: '200px', overflowY: 'auto' }}>
+                                                <div style={{ marginTop: '0.5rem', background: '#0f0f0f', padding: '1rem', borderRadius: '8px', fontSize: '0.85rem', fontFamily: 'monospace', maxHeight: '250px', overflowY: 'auto' }}>
                                                     {activeRun.result.action_trace.map((action: any, i: number) => (
-                                                        <div key={i} style={{ marginBottom: '0.25rem', color: '#a3a3a3' }}>
-                                                            <span style={{ color: 'var(--primary)' }}>[{action.step}]</span> {action.action} {action.target} - {action.outcome}
-                                                            {action.is_new_discovery && <span style={{ color: '#10b981', marginLeft: '0.5rem' }}>✨ New</span>}
+                                                        <div key={i} style={{ marginBottom: '0.25rem', color: '#a3a3a3', lineHeight: '1.4' }}>
+                                                            <span style={{ color: 'var(--primary)', fontWeight: 500 }}>[{action.step}]</span> {action.action} {action.target} - {action.outcome}
+                                                            {action.is_new_discovery && <span style={{ color: '#10b981', marginLeft: '0.5rem' }}>✨ New Discovery</span>}
                                                         </div>
                                                     ))}
                                                 </div>
+                                                <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.5rem', fontStyle: 'italic' }}>
+                                                    This shows every action the agent took during exploration. "New Discovery" means the agent found something new.
+                                                </p>
                                             </details>
                                         )}
                                         </>
