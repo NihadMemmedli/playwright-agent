@@ -107,7 +107,7 @@ def sync_data_from_files():
                 
                 # Create DB Entry
                 # We use file modification time as creation time approximate
-                mtime = datetime.fromtimestamp(os.path.getmtime(d))
+                mtime = datetime.utcfromtimestamp(os.path.getmtime(d))
                 
                 run = DBTestRun(
                     id=run_id,
@@ -253,9 +253,11 @@ def list_runs(session: Session = Depends(get_session)):
     # Convert to API model
     results = []
     for r in runs_db:
+        # Format timestamp as YYYY-MM-DD_HH-MM-SS to match frontend expectation
+        timestamp = r.created_at.strftime("%Y-%m-%d_%H-%M-%S")
         results.append(TestRun(
             id=r.id,
-            timestamp=r.created_at.isoformat(), # Use created_at as timestamp
+            timestamp=timestamp,
             status=r.status,
             test_name=r.test_name,
             steps_completed=r.steps_completed,
@@ -434,7 +436,7 @@ def create_run(request: RunRequest, background_tasks: BackgroundTasks, session: 
     if not spec_path.exists():
         raise HTTPException(status_code=404, detail="Spec not found")
         
-    run_id = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    run_id = datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S")
     run_dir = RUNS_DIR / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
     (run_dir / "spec.md").write_text(spec_path.read_text())
@@ -464,7 +466,7 @@ def create_bulk_run(request: BulkRunRequest, background_tasks: BackgroundTasks, 
         spec_path = SPECS_DIR / spec_name
         if not spec_path.exists(): continue
             
-        run_id = datetime.now().strftime("%Y-%m-%d_%H-%M-%S") + f"_{spec_name.replace('/', '_')}"
+        run_id = datetime.utcnow().strftime("%Y-%m-%d_%H-%M-%S") + f"_{spec_name.replace('/', '_')}"
         run_dir = RUNS_DIR / run_id
         run_dir.mkdir(parents=True, exist_ok=True)
         (run_dir / "spec.md").write_text(spec_path.read_text())
