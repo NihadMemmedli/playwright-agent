@@ -19,6 +19,11 @@ build/
 /runs/
 /test-results/
 
+# Generated specs and tests
+/specs/generated/
+/tests/apps/
+/tests/generated/
+
 *.png
 
 # Environment
