@@ -857,6 +857,321 @@ async def get_flow_details(run_id: str, flow_id: str):
         )
 
 
+@app.post("/api/agents/exploratory/{run_id}/flows/{flow_id}/spec")
+async def generate_flow_spec(run_id: str, flow_id: str, force_regenerate: bool = False):
+    """
+    Generate a test spec for a single discovered flow.
+
+    Takes a specific flow from exploration and generates a focused
+    .md test spec that can be run through the pipeline.
+    Uses LLM-powered generation for better quality specs.
+
+    If a spec already exists for this flow, returns the cached version.
+    Use force_regenerate=true to generate a new spec even if one exists.
+    """
+    from pathlib import Path
+    import re
+    from datetime import datetime
+    from orchestrator.agents.spec_synthesis_agent import SpecSynthesisAgent
+    from orchestrator.load_env import setup_claude_env
+
+    # Get project root
+    project_root = Path(__file__).parent.parent.parent
+    flows_file = project_root / "runs" / run_id / "flows.json"
+    result_file = project_root / "runs" / run_id / "result.json"
+
+    if not flows_file.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Flows file not found for run {run_id}"
+        )
+
+    # Setup Claude environment for agent
+    setup_claude_env()
+
+    try:
+        with open(flows_file, 'r') as f:
+            data = json.load(f)
+
+        flows = data.get("flows", [])
+
+        # Find the requested flow
+        flow = next((f for f in flows if f.get("id") == flow_id), None)
+
+        if not flow and flow_id.startswith("flow_"):
+            try:
+                index = int(flow_id.split("_")[1]) - 1
+                if 0 <= index < len(flows):
+                    flow = flows[index]
+            except (ValueError, IndexError):
+                pass
+
+        if not flow:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Flow {flow_id} not found"
+            )
+
+        # Check if spec already exists (return cached version unless force_regenerate)
+        if not force_regenerate and "generated_spec" in flow:
+            existing_spec = flow["generated_spec"]
+            return {
+                "spec_content": existing_spec["spec_content"],
+                "filename": existing_spec.get("filename", f"{flow.get('title', 'spec').lower().replace(' ', '_')}.md"),
+                "flow_title": flow.get("title", "Unnamed Flow"),
+                "summary": "Loaded previously generated spec",
+                "generated_at": existing_spec.get("generated_at", datetime.now().isoformat()),
+                "cached": True
+            }
+
+        # Load exploration result for context
+        exploration_results = {}
+        if result_file.exists():
+            with open(result_file, 'r') as f:
+                exploration_results = json.load(f)
+
+        # Get base URL from exploration results
+        base_url = exploration_results.get("exploration_url", "")
+        if not base_url:
+            # Try to infer from the first page in the flow
+            pages = flow.get("pages", [])
+            if pages:
+                from urllib.parse import urlparse
+                parsed = urlparse(pages[0])
+                base_url = f"{parsed.scheme}://{parsed.netloc}"
+
+        # Generate spec content using SpecSynthesisAgent
+        agent = SpecSynthesisAgent()
+
+        # Build synthesis prompt for single flow
+        prompt = _build_single_flow_prompt(flow, base_url)
+
+        # Query agent for spec generation
+        result = await agent._query_agent(prompt)
+
+        # Parse the agent response
+        from orchestrator.utils.json_utils import extract_json_from_markdown
+        spec_data = extract_json_from_markdown(result)
+
+        # Extract spec content from agent response
+        if "specs" in spec_data and spec_data["specs"]:
+            # Get the first spec from happy_path or any category
+            spec_content = None
+            filename = None
+
+            for category in ["happy_path", "edge_cases"]:
+                if category in spec_data["specs"] and spec_data["specs"][category]:
+                    for fname, content in spec_data["specs"][category].items():
+                        spec_content = content
+                        filename = fname
+                        break
+                if spec_content:
+                    break
+
+            if not spec_content:
+                # Fallback to any spec
+                for category, files in spec_data["specs"].items():
+                    for fname, content in files.items():
+                        spec_content = content
+                        filename = fname
+                        break
+                    if spec_content:
+                        break
+        else:
+            # Fallback: generate spec directly
+            spec_content, filename = _generate_fallback_spec(flow, base_url)
+
+        flow_title = flow.get("title", "Unnamed Flow")
+
+        # Prepare the spec data
+        spec_result = {
+            "spec_content": spec_content,
+            "filename": filename or f"{flow_title.lower().replace(' ', '_')}.md",
+            "flow_title": flow_title,
+            "summary": spec_data.get("summary", f"Generated test spec for {flow_title}"),
+            "generated_at": datetime.now().isoformat(),
+            "cached": False
+        }
+
+        # Save generated spec to flows.json for caching
+        flow["generated_spec"] = {
+            "spec_content": spec_result["spec_content"],
+            "filename": spec_result["filename"],
+            "generated_at": spec_result["generated_at"]
+        }
+
+        # Update the flow in the flows list
+        for i, f in enumerate(flows):
+            if f.get("id") == flow.get("id"):
+                flows[i] = flow
+                break
+
+        # Write back to flows.json
+        with open(flows_file, 'w') as f:
+            json.dump({"flows": flows}, f, indent=2)
+
+        return spec_result
+
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to parse flows.json file"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error generating spec: {str(e)}"
+        )
+
+
+def _build_single_flow_prompt(flow: Dict[str, Any], base_url: str) -> str:
+    """Build a synthesis prompt for generating a spec from a single flow."""
+    flow_title = flow.get("title", "Unnamed Flow")
+    happy_path = flow.get("happy_path", "")
+    pages = flow.get("pages", [])
+    edge_cases = flow.get("edge_cases", [])
+    test_ideas = flow.get("test_ideas", [])
+    entry = flow.get("entry_point", "")
+    exit_point = flow.get("exit_point", "")
+
+    # Build flow description
+    flow_desc = f"\nFLOW: {flow_title}\n"
+    flow_desc += f"Description: {happy_path}\n"
+    if pages:
+        flow_desc += f"Pages visited: {' → '.join(pages)}\n"
+    if entry:
+        flow_desc += f"Entry point: {entry}\n"
+    if exit_point:
+        flow_desc += f"Exit point: {exit_point}\n"
+    if edge_cases:
+        flow_desc += f"Edge cases: {', '.join(edge_cases[:5])}\n"
+    if test_ideas:
+        flow_desc += f"Test ideas: {', '.join(test_ideas[:3])}\n"
+
+    return f"""You are a Test Specification Generator.
+
+Generate a COMPREHENSIVE .md test spec for the following discovered user flow.
+
+{flow_desc}
+
+REQUIREMENTS:
+1. Follow this EXACT format:
+   ```markdown
+   # Test: [Feature Name]
+
+   ## Description
+   [Brief description of what this tests]
+
+   ## Steps
+   1. Navigate to [URL]
+   2. Click [element]
+   3. Fill [field] with [value]
+   4. Assert [expected outcome]
+
+   ## Expected Outcome
+   - [Expected result 1]
+   - [Expected result 2]
+
+   ## Test Data
+   - [Any test data requirements]
+   ```
+
+2. IMPORTANT:
+   - Parse the happy_path description into specific, actionable steps
+   - Don't use placeholders like "Complete step X" - use actual actions
+   - Include specific URLs and element descriptions based on the flow
+   - Use placeholders `{{{{VAR_NAME}}}}` for secrets/passwords
+   - Make the spec actionable and clear
+
+OUTPUT FORMAT (return ONLY JSON):
+```json
+{{
+  "specs": {{
+    "happy_path": {{
+      "{flow_title.lower().replace(' ', '_').replace('/', '_')}.md": "# Test: {flow_title}\\n\\n## Description\\n..."
+    }}
+  }},
+  "summary": "Generated test spec for {flow_title}"
+}}
+```
+
+Now generate the test spec."""
+
+
+def _generate_fallback_spec(flow: Dict[str, Any], base_url: str) -> tuple[str, str]:
+    """Generate a basic spec as fallback when agent fails."""
+    import re
+    from datetime import datetime
+
+    flow_title = flow.get("title", "Unnamed Flow")
+    happy_path = flow.get("happy_path", "")
+    pages = flow.get("pages", [])
+    entry = flow.get("entry_point", "")
+    exit_point = flow.get("exit_point", "")
+
+    # Parse happy path into steps
+    steps = []
+
+    # Entry point
+    if entry:
+        steps.append(f"1. Navigate to {{{{BASE_URL}}}}{entry}")
+    elif pages:
+        steps.append(f"1. Navigate to {pages[0]}")
+
+    # Parse happy path description for actionable steps
+    if happy_path:
+        # Split by common delimiters and create steps
+        actions = re.split(r'[,.]', happy_path)
+        step_num = len(steps) + 1
+        for action in actions:
+            action = action.strip()
+            if action and len(action) > 5:  # Skip short fragments
+                # Convert to imperative form
+                if not action.startswith(('Navigate', 'Click', 'Fill', 'Verify', 'Check', 'Select', 'Assert')):
+                    # Just add the action as-is
+                    steps.append(f"{step_num}. {action}")
+                    step_num += 1
+
+    # Exit point
+    if exit_point:
+        steps.append(f"{len(steps) + 1}. Verify arrival at {{{{BASE_URL}}}}{exit_point}")
+    else:
+        steps.append(f"{len(steps) + 1}. Verify successful completion")
+
+    # Build spec content
+    spec_content = f"""# Test: {flow_title}
+
+## Description
+{happy_path}
+
+## Steps
+{chr(10).join(steps)}
+
+## Expected Outcome
+- User successfully completes the {flow_title}
+- All pages load correctly
+- No errors are displayed
+
+## Test Data
+- Base URL: {{{{BASE_URL}}}}
+"""
+
+    # Add edge cases if available
+    edge_cases = flow.get("edge_cases", [])
+    if edge_cases:
+        spec_content += "\n## Edge Cases\n"
+        for case in edge_cases[:5]:
+            spec_content += f"- {case}\n"
+
+    # Generate filename
+    safe_name = re.sub(r'[^\w\s-]', '', flow_title)
+    safe_name = re.sub(r'[-\s]+', '_', safe_name)
+    safe_name = safe_name.lower().strip('_')
+    filename = f"{safe_name}.md"
+
+    return spec_content, filename
+
+
 @app.get("/api/agents/sessions")
 async def list_sessions():
     """List saved authentication sessions."""

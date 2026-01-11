@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { Bot, FileText, Play, Terminal, ChevronRight, CheckCircle2, AlertTriangle, Loader2, Clock, RotateCcw, Lock, Globe, Settings, Download, List, Sparkles, Zap, ArrowRight, Info, X } from 'lucide-react';
+import { Bot, FileText, Play, Terminal, ChevronRight, CheckCircle2, AlertTriangle, Loader2, Clock, RotateCcw, Lock, Globe, Settings, Download, List, Sparkles, Zap, ArrowRight, Info, X, RefreshCw } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 interface AgentRun {
@@ -56,6 +56,9 @@ export default function AgentsPage() {
     const [flowModalOpen, setFlowModalOpen] = useState(false);
     const [selectedFlow, setSelectedFlow] = useState<any | null>(null);
     const [loadingFlowDetails, setLoadingFlowDetails] = useState(false);
+    const [generatingSpec, setGeneratingSpec] = useState(false);
+    const [generatedSpec, setGeneratedSpec] = useState<any | null>(null);
+    const [specModalOpen, setSpecModalOpen] = useState(false);
     const pollInterval = useRef<NodeJS.Timeout | null>(null);
 
     // Fetch history
@@ -156,6 +159,54 @@ export default function AgentsPage() {
         } finally {
             setLoadingFlowDetails(false);
         }
+    };
+
+    // Generate spec for a single flow
+    const generateFlowSpec = async (flowId: string, forceRegenerate: boolean = false) => {
+        if (!activeRun?.id) return;
+
+        setGeneratingSpec(true);
+        try {
+            const url = forceRegenerate
+                ? `http://localhost:8001/api/agents/exploratory/${activeRun.id}/flows/${flowId}/spec?force_regenerate=true`
+                : `http://localhost:8001/api/agents/exploratory/${activeRun.id}/flows/${flowId}/spec`;
+
+            const res = await fetch(url, {
+                method: 'POST'
+            });
+            if (res.ok) {
+                const data = await res.json();
+                setGeneratedSpec(data);
+                setSpecModalOpen(true);
+            } else {
+                const error = await res.json();
+                alert(`Failed to generate spec: ${error.detail || 'Unknown error'}`);
+            }
+        } catch (e) {
+            console.error("Failed to generate spec", e);
+            alert("Failed to generate spec. Please try again.");
+        } finally {
+            setGeneratingSpec(false);
+        }
+    };
+
+    // Download generated spec as file
+    const downloadSpec = (content?: string, filename?: string) => {
+        // If no arguments provided, use state (for new flow spec generation)
+        const specContent = content || generatedSpec?.spec_content;
+        const specFilename = filename || generatedSpec?.filename || 'spec.md';
+
+        if (!specContent) return;
+
+        const blob = new Blob([specContent], { type: 'text/markdown' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = specFilename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
     };
 
     // When selection changes
@@ -312,16 +363,6 @@ export default function AgentsPage() {
         return new Date(iso).toLocaleString('en-US', { hour: 'numeric', minute: 'numeric', day: 'numeric', month: 'short' });
     };
 
-    const downloadSpec = (content: string, filename: string) => {
-        const blob = new Blob([content], { type: 'text/markdown' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(url);
-    };
-
     return (
         <div style={{ maxWidth: '1400px', margin: '0 auto', paddingTop: '1rem', paddingBottom: '4rem', height: '100vh', display: 'flex', flexDirection: 'column' }}>
             <header style={{ marginBottom: '1.5rem', flexShrink: 0 }}>
@@ -409,26 +450,6 @@ export default function AgentsPage() {
                                     <h4 style={{ fontWeight: 600, fontSize: '0.9rem', color: selectedAgent === 'exploratory' ? 'var(--primary)' : 'var(--text)' }}>Enhanced Explorer</h4>
                                     <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
                                         15-min autonomous exploration
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div
-                                onClick={() => setSelectedAgent('writer')}
-                                style={{
-                                    padding: '0.75rem',
-                                    cursor: 'pointer',
-                                    background: selectedAgent === 'writer' ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-                                    border: selectedAgent === 'writer' ? '1px solid var(--primary)' : '1px solid transparent',
-                                    borderRadius: '8px',
-                                    display: 'flex', gap: '0.75rem'
-                                }}
-                            >
-                                <FileText size={20} color={selectedAgent === 'writer' ? 'var(--primary)' : 'var(--text-secondary)'} />
-                                <div>
-                                    <h4 style={{ fontWeight: 600, fontSize: '0.9rem', color: selectedAgent === 'writer' ? 'var(--primary)' : 'var(--text)' }}>Test Case Writer</h4>
-                                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                        Generate test spec
                                     </p>
                                 </div>
                             </div>
@@ -1096,11 +1117,218 @@ export default function AgentsPage() {
                             )}
 
                             {selectedFlow.entry_point && (
-                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
                                     Entry: {selectedFlow.entry_point}
                                     {selectedFlow.exit_point && ` → Exit: ${selectedFlow.exit_point}`}
                                 </div>
                             )}
+
+                            <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--border)' }}>
+                                <button
+                                    onClick={() => generateFlowSpec(selectedFlow.id)}
+                                    disabled={generatingSpec}
+                                    style={{
+                                        flex: 1,
+                                        padding: '0.75rem 1rem',
+                                        background: 'var(--primary)',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '8px',
+                                        fontSize: '0.9rem',
+                                        fontWeight: 500,
+                                        cursor: generatingSpec ? 'not-allowed' : 'pointer',
+                                        opacity: generatingSpec ? 0.6 : 1,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        gap: '0.5rem'
+                                    }}
+                                >
+                                    {generatingSpec ? (
+                                        <>
+                                            <Loader2 size={16} className="spin" />
+                                            Generating...
+                                        </>
+                                    ) : selectedFlow.generated_spec ? (
+                                        <>
+                                            <FileText size={16} />
+                                            View Test Spec
+                                        </>
+                                    ) : (
+                                        <>
+                                            <FileText size={16} />
+                                            Generate Test Spec
+                                        </>
+                                    )}
+                                </button>
+                                <button
+                                    onClick={() => setFlowModalOpen(false)}
+                                    style={{
+                                        padding: '0.75rem 1.5rem',
+                                        background: 'transparent',
+                                        color: 'var(--text-secondary)',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '8px',
+                                        fontSize: '0.9rem',
+                                        fontWeight: 500,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Close
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Generated Spec Modal */}
+                {specModalOpen && generatedSpec && (
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1001,
+                        padding: '1rem'
+                    }}>
+                        <div style={{
+                            background: 'var(--surface)',
+                            borderRadius: '12px',
+                            maxWidth: '800px',
+                            maxHeight: '85vh',
+                            width: '100%',
+                            overflow: 'hidden',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            border: '1px solid var(--border)'
+                        }}>
+                            <div style={{
+                                padding: '1.25rem 1.5rem',
+                                borderBottom: '1px solid var(--border)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between'
+                            }}>
+                                <div>
+                                    <h3 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 600 }}>
+                                        {generatedSpec.flow_title}
+                                    </h3>
+                                    <p style={{ margin: '0.25rem 0 0 0', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                        {generatedSpec.cached ? (
+                                            <><span style={{ background: 'rgba(59, 130, 246, 0.1)', color: 'var(--primary)', padding: '2px 8px', borderRadius: '4px', fontSize: '0.75rem' }}>Cached</span> Previously generated spec</>
+                                        ) : (
+                                            <>Test specification generated from exploration</>
+                                        )}
+                                    </p>
+                                </div>
+                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                    {generatedSpec.cached && (
+                                        <button
+                                            onClick={() => {
+                                                if (selectedFlow) {
+                                                    generateFlowSpec(selectedFlow.id, true);
+                                                }
+                                            }}
+                                            disabled={generatingSpec}
+                                            style={{
+                                                padding: '0.5rem 0.75rem',
+                                                background: 'transparent',
+                                                color: 'var(--text)',
+                                                border: '1px solid var(--border)',
+                                                borderRadius: '6px',
+                                                fontSize: '0.8rem',
+                                                fontWeight: 500,
+                                                cursor: generatingSpec ? 'not-allowed' : 'pointer',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: '0.4rem'
+                                            }}
+                                            title="Generate new version"
+                                        >
+                                            <RefreshCw size={14} />
+                                            Regenerate
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={() => setSpecModalOpen(false)}
+                                        style={{
+                                            background: 'transparent',
+                                            border: 'none',
+                                            cursor: 'pointer',
+                                            color: 'var(--text-secondary)'
+                                        }}
+                                    >
+                                        <X size={20} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div style={{
+                                padding: '1.5rem',
+                                overflowY: 'auto',
+                                flex: 1,
+                                background: 'var(--code-bg)',
+                                borderRadius: '8px',
+                                margin: '1rem',
+                                fontSize: '0.85rem',
+                                lineHeight: '1.6',
+                                whiteSpace: 'pre-wrap',
+                                wordBreak: 'break-word',
+                                fontFamily: 'var(--font-mono)'
+                            }}>
+                                {generatedSpec.spec_content}
+                            </div>
+
+                            <div style={{
+                                padding: '1rem 1.5rem',
+                                borderTop: '1px solid var(--border)',
+                                display: 'flex',
+                                gap: '0.75rem',
+                                justifyContent: 'flex-end'
+                            }}>
+                                <button
+                                    onClick={() => {
+                                        navigator.clipboard.writeText(generatedSpec.spec_content);
+                                        alert('Spec copied to clipboard!');
+                                    }}
+                                    style={{
+                                        padding: '0.6rem 1rem',
+                                        background: 'transparent',
+                                        color: 'var(--text)',
+                                        border: '1px solid var(--border)',
+                                        borderRadius: '6px',
+                                        fontSize: '0.85rem',
+                                        fontWeight: 500,
+                                        cursor: 'pointer'
+                                    }}
+                                >
+                                    Copy
+                                </button>
+                                <button
+                                    onClick={() => downloadSpec()}
+                                    style={{
+                                        padding: '0.6rem 1rem',
+                                        background: 'var(--primary)',
+                                        color: 'white',
+                                        border: 'none',
+                                        borderRadius: '6px',
+                                        fontSize: '0.85rem',
+                                        fontWeight: 500,
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.5rem'
+                                    }}
+                                >
+                                    <Download size={16} />
+                                    Download {generatedSpec.filename}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 )}

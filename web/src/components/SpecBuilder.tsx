@@ -89,11 +89,12 @@ export default function SpecBuilder({ content, onChange }: SpecBuilderProps) {
     };
 
     const addStep = () => {
-        const newSteps = [...steps, {
+        const newStep: SpecStep = {
             id: Math.random().toString(36).substr(2, 9),
             type: 'custom',
             description: ''
-        }];
+        };
+        const newSteps: SpecStep[] = [...steps, newStep];
         update(title, description, newSteps);
     };
 
