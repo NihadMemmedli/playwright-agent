@@ -16,6 +16,7 @@ def extract_json_from_markdown(text: str) -> dict:
     - ```json ... ```
     - ``` ... ```
     - Plain JSON string
+    - Truncated JSON (attempts to fix)
     """
     if not text or not isinstance(text, str):
         raise ValueError("Input must be a non-empty string")
@@ -27,7 +28,7 @@ def extract_json_from_markdown(text: str) -> dict:
     match = re.search(json_pattern, text, re.DOTALL)
     if match:
         json_str = match.group(1).strip()
-        return json.loads(json_str)
+        return _parse_json_with_fallback(json_str)
 
     # Try to extract from ``` code block (no language specified)
     code_pattern = r"```\s*(.*?)\s*```"
@@ -35,17 +36,68 @@ def extract_json_from_markdown(text: str) -> dict:
     if match:
         json_str = match.group(1).strip()
         try:
-            return json.loads(json_str)
+            return _parse_json_with_fallback(json_str)
         except json.JSONDecodeError:
             pass  # Try next method
 
     # Try parsing the whole text as JSON
     try:
-        return json.loads(text)
+        return _parse_json_with_fallback(text)
+    except ValueError as e:
+        raise e
+
+
+def _parse_json_with_fallback(json_str: str) -> dict:
+    """
+    Parse JSON with fallback for truncated output.
+    """
+    try:
+        return json.loads(json_str)
     except json.JSONDecodeError as e:
+        # Attempt to fix truncated JSON
+        fixed = _attempt_fix_truncated_json(json_str)
+        if fixed:
+            try:
+                return json.loads(fixed)
+            except:
+                pass
+
         raise ValueError(
-            f"Could not extract JSON from text. Error: {e}\nText preview: {text[:200]}..."
+            f"Could not parse JSON. Error: {e}\nText preview: {json_str[:500]}..."
         )
+
+
+def _attempt_fix_truncated_json(json_str: str) -> str:
+    """
+    Attempt to fix truncated JSON by closing open brackets/quotes.
+    Returns fixed string or None if fix is not possible.
+    """
+    # Count brackets to see what needs closing
+    open_braces = json_str.count('{')
+    close_braces = json_str.count('}')
+    open_brackets = json_str.count('[')
+    close_brackets = json_str.count(']')
+
+    fixed = json_str.rstrip()
+
+    # Check if we're in an incomplete string
+    if fixed.count('"') % 2 != 0:
+        # Odd number of quotes means we're in a string, close it
+        fixed += '"'
+
+    # Close arrays
+    if open_brackets > close_brackets:
+        fixed += ']' * (open_brackets - close_brackets)
+
+    # Close objects
+    if open_braces > close_braces:
+        fixed += '}' * (open_braces - close_braces)
+
+    # Remove trailing comma before closing brackets
+    import re
+    fixed = re.sub(r',(\s*[}\]])', r'\1', fixed)
+
+    return fixed if fixed != json_str else None
 
 
 def validate_json_schema(data: dict, schema_path: str) -> bool:

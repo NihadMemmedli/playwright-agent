@@ -532,19 +532,37 @@ def update_spec_metadata(spec_name: str, request: UpdateMetadataRequest, session
 # ========= Agents =========
 
 class AgentRunRequest(BaseModel):
-    agent_type: str  # "exploratory" or "writer"
+    agent_type: str  # "exploratory", "writer", or "spec-synthesis"
     config: Dict[str, Any]
+
+
+class ExploratoryRunRequest(BaseModel):
+    """Enhanced exploratory testing request."""
+    url: str
+    time_limit_minutes: int = 15
+    instructions: str = ""
+    auth: Optional[Dict[str, Any]] = None  # {"type": "credentials|session|none", ...}
+    test_data: Optional[Dict[str, Any]] = None
+    focus_areas: Optional[List[str]] = None
+    excluded_patterns: Optional[List[str]] = None
+
+
+class SpecSynthesisRequest(BaseModel):
+    """Spec synthesis request."""
+    exploration_run_id: str  # Run ID of exploration to synthesize
+
 
 async def execute_agent_background(run_id: str, agent_type: str, config: dict):
     from .db import engine
     from sqlmodel import Session
     from .models_db import AgentRun
 
-    
+
     try:
         from orchestrator.agents.exploratory_agent import ExploratoryAgent
         from orchestrator.agents.spec_writer_agent import SpecWriterAgent
-        
+        from orchestrator.agents.spec_synthesis_agent import SpecSynthesisAgent
+
         result = {}
         if agent_type == "exploratory":
             agent = ExploratoryAgent()
@@ -552,7 +570,10 @@ async def execute_agent_background(run_id: str, agent_type: str, config: dict):
         elif agent_type == "writer":
             agent = SpecWriterAgent()
             result = await agent.run(config)
-            
+        elif agent_type == "spec-synthesis":
+            agent = SpecSynthesisAgent()
+            result = await agent.run(config)
+
         # Update DB success
         with Session(engine) as session:
             run = session.get(AgentRun, run_id)
@@ -561,7 +582,7 @@ async def execute_agent_background(run_id: str, agent_type: str, config: dict):
                 run.result = result
                 session.add(run)
                 session.commit()
-                
+
     except Exception as e:
         import traceback
         traceback.print_exc()
@@ -625,3 +646,388 @@ def get_agent_run(id: str, session: Session = Depends(get_session)):
         "config": r.config,
         "result": r.result
     }
+
+# ========= Enhanced Exploratory Testing Endpoints =========
+
+@app.post("/api/agents/exploratory")
+async def run_exploratory_agent(request: ExploratoryRunRequest, background_tasks: BackgroundTasks, session: Session = Depends(get_session)):
+    """
+    Run enhanced exploratory testing with 10-15 minute autonomous exploration.
+
+    Features:
+    - Smart state tracking to avoid loops
+    - Coverage goals for guided exploration
+    - Auth support (credentials, session, none)
+    - Test data integration
+    - Focus areas and exclusion patterns
+    """
+    from orchestrator.agents.auth_handler import AuthHandler, build_auth_prompt_section, get_auth_test_data
+
+    # Build config for agent
+    config = request.dict()
+
+    # Process auth configuration
+    auth_result = {"success": True, "type": "none"}
+    if request.auth:
+        auth_handler = AuthHandler()
+        auth_result = await auth_handler.authenticate(None, request.auth, request.url)
+
+        # Add auth instructions to prompt
+        if auth_result.get("success") and auth_result.get("instructions"):
+            config["auth_instructions"] = auth_result["instructions"]
+
+        # Add auth test data
+        config["test_data"] = config.get("test_data", {})
+        config["test_data"].update(get_auth_test_data(request.auth or {}))
+
+    # Create DB record
+    run_id = str(uuid.uuid4())
+    run = AgentRun(
+        id=run_id,
+        agent_type="exploratory",
+        config_json=json.dumps(config),
+        status="running"
+    )
+    session.add(run)
+    session.commit()
+
+    # Start background task
+    background_tasks.add_task(execute_agent_background, run_id, "exploratory", config)
+
+    return {"run_id": run_id, "status": "started", "auth": auth_result.get("type", "none")}
+
+
+@app.post("/api/agents/exploratory/{run_id}/synthesize")
+async def synthesize_specs(run_id: str, background_tasks: BackgroundTasks, session: Session = Depends(get_session)):
+    """
+    Generate .md test specs from exploration results.
+
+    Takes the exploration results and synthesizes them into
+    production-ready .md specs that work with the existing pipeline.
+    """
+    # Get exploration run
+    exploration_run = session.get(AgentRun, run_id)
+    if not exploration_run:
+        raise HTTPException(status_code=404, detail="Exploration run not found")
+
+    if exploration_run.status != "completed":
+        raise HTTPException(status_code=400, detail="Exploration must be completed before synthesis")
+
+    exploration_result = exploration_run.result
+    if not exploration_result:
+        raise HTTPException(status_code=400, detail="No exploration results found")
+
+    # Create synthesis run
+    import os
+    project_root = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+    output_dir = os.path.join(project_root, "specs", "generated")
+
+    synthesis_run_id = str(uuid.uuid4())
+    synthesis_config = {
+        "exploration_results": exploration_result,
+        "url": exploration_result.get("config", {}).get("url", ""),
+        "output_dir": output_dir
+    }
+
+    synthesis_run = AgentRun(
+        id=synthesis_run_id,
+        agent_type="spec-synthesis",
+        config_json=json.dumps(synthesis_config),
+        status="running"
+    )
+    session.add(synthesis_run)
+    session.commit()
+
+    # Start background task
+    background_tasks.add_task(execute_agent_background, synthesis_run_id, "spec-synthesis", synthesis_config)
+
+    return {
+        "synthesis_run_id": synthesis_run_id,
+        "exploration_run_id": run_id,
+        "status": "started"
+    }
+
+
+@app.get("/api/agents/exploratory/{run_id}/specs")
+async def get_exploration_specs(run_id: str, session: Session = Depends(get_session)):
+    """
+    Get generated specs from an exploration run.
+
+    Returns the specs that were generated from the exploration.
+    """
+    # Get synthesis runs for this exploration
+    statement = select(AgentRun).where(
+        AgentRun.config_json.contains(run_id)
+    ).order_by(AgentRun.created_at.desc())
+
+    synthesis_runs = session.exec(statement).all()
+
+    if not synthesis_runs:
+        return {"specs": {}, "message": "No specs generated yet. Run /synthesize first."}
+
+    # Get the most recent completed synthesis
+    for run in synthesis_runs:
+        if run.status == "completed" and run.result:
+            return {
+                "specs": run.result.get("specs", {}),
+                "summary": run.result.get("summary", ""),
+                "total_specs": run.result.get("total_specs", 0),
+                "flows_covered": run.result.get("flows_covered", []),
+                "generated_at": run.result.get("generated_at")
+            }
+
+    raise HTTPException(status_code=404, detail="No completed spec synthesis found")
+
+
+@app.get("/api/agents/sessions")
+async def list_sessions():
+    """List saved authentication sessions."""
+    from orchestrator.agents.auth_handler import AuthHandler
+
+    auth_handler = AuthHandler()
+    sessions = auth_handler.list_sessions()
+
+    return {"sessions": sessions}
+
+
+@app.post("/api/agents/sessions/{session_id}")
+async def create_session(
+    session_id: str,
+    cookies: List[Dict[str, Any]],
+    storage: Dict[str, Any]
+):
+    """
+    Save an authentication session for future use.
+
+    This allows you to capture a logged-in session and reuse it
+    for future explorations.
+    """
+    from orchestrator.agents.auth_handler import AuthHandler
+
+    auth_handler = AuthHandler()
+    result = await auth_handler.save_session(session_id, cookies, storage)
+
+    if result.get("success"):
+        return result
+    else:
+        raise HTTPException(status_code=400, detail=result.get("error"))
+
+
+@app.delete("/api/agents/sessions/{session_id}")
+async def delete_session(session_id: str):
+    """Delete a saved authentication session."""
+    from orchestrator.agents.auth_handler import AuthHandler
+
+    auth_handler = AuthHandler()
+    if auth_handler.delete_session(session_id):
+        return {"status": "deleted", "session_id": session_id}
+    else:
+        raise HTTPException(status_code=404, detail="Session not found")
+
+
+# ========= Chrome Exploratory Workflow (Legacy - may be removed) =========
+
+WORKFLOWS_DIR = BASE_DIR / "workflows"
+WORKFLOWS_DIR.mkdir(exist_ok=True)
+
+# Initialize workflow registry
+from orchestrator.workflows.workflow_state import WorkflowRegistry, WorkflowState
+
+workflow_registry = WorkflowRegistry(WORKFLOWS_DIR)
+
+
+class WorkflowStartRequest(BaseModel):
+    url: str
+    mode: str = "headless"  # visible or headless
+    time_limit_minutes: int = 10
+    test_data: Optional[Dict[str, Any]] = None
+    focus_areas: Optional[List[str]] = None
+
+
+class WorkflowApproveRequest(BaseModel):
+    step: str  # "specs" or "pipeline"
+
+
+@app.post("/api/workflows/start")
+async def start_workflow(request: WorkflowStartRequest, background_tasks: BackgroundTasks):
+    """Start a new Chrome Exploratory workflow"""
+    import uuid
+
+    workflow_id = str(uuid.uuid4())[:8]
+    config = request.dict()
+
+    # Create workflow
+    manager = workflow_registry.create_workflow(workflow_id, config)
+    manager.transition_to(WorkflowState.EXPLORATION_RUNNING)
+
+    # Start exploration in background
+    background_tasks.add_task(execute_exploration_workflow, workflow_id, config)
+
+    return {
+        "workflow_id": workflow_id,
+        "status": "started",
+        "state": "exploration_running"
+    }
+
+
+@app.get("/api/workflows")
+def list_workflows():
+    """List all workflows"""
+    return workflow_registry.list_workflows()
+
+
+@app.get("/api/workflows/{workflow_id}")
+def get_workflow(workflow_id: str):
+    """Get workflow details"""
+    manager = workflow_registry.get_workflow(workflow_id)
+    if not manager:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    return manager.get_summary()
+
+
+@app.get("/api/workflows/{workflow_id}/state")
+def get_workflow_state(workflow_id: str):
+    """Get workflow state"""
+    manager = workflow_registry.get_workflow(workflow_id)
+    if not manager:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    return {
+        "workflow_id": workflow_id,
+        "state": manager.get_state().value,
+        "updated_at": manager.state["updated_at"]
+    }
+
+
+@app.get("/api/workflows/{workflow_id}/results")
+def get_workflow_results(workflow_id: str):
+    """Get workflow results"""
+    manager = workflow_registry.get_workflow(workflow_id)
+    if not manager:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    return {
+        "exploration_results": manager.get_exploration_results(),
+        "generated_specs": manager.get_generated_specs(),
+        "pipeline_results": manager.get_pipeline_results()
+    }
+
+
+@app.post("/api/workflows/{workflow_id}/approve")
+async def approve_workflow_step(workflow_id: str, request: WorkflowApproveRequest):
+    """Approve workflow and move to next step"""
+    manager = workflow_registry.get_workflow(workflow_id)
+    if not manager:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    current_state = manager.get_state()
+
+    if request.step == "specs":
+        # Approve exploration, generate specs
+        if current_state != WorkflowState.EXPLORATION_COMPLETE:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot approve specs generation from state {current_state.value}"
+            )
+
+        manager.transition_to(WorkflowState.SPEC_GENERATION_RUNNING)
+        # Start spec generation in background
+        import asyncio
+        asyncio.create_task(execute_spec_generation_workflow(workflow_id))
+
+        return {"status": "started", "state": "spec_generation_running"}
+
+    elif request.step == "pipeline":
+        # Approve specs, run pipeline
+        if current_state != WorkflowState.SPECS_READY:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Cannot approve pipeline from state {current_state.value}"
+            )
+
+        # Save specs to specs/ directory and run pipeline
+        specs = manager.get_generated_specs()
+        saved_count = save_workflow_specs_to_specs_dir(workflow_id, specs)
+
+        manager.transition_to(WorkflowState.PIPELINE_RUNNING)
+
+        return {
+            "status": "approved",
+            "state": "pipeline_ready",
+            "specs_saved": saved_count
+        }
+
+    else:
+        raise HTTPException(status_code=400, detail="Invalid step")
+
+
+async def execute_exploration_workflow(workflow_id: str, config: Dict[str, Any]):
+    """Execute Chrome Exploratory Agent"""
+    from orchestrator.agents.chrome_exploratory_agent import ChromeExploratoryAgent
+
+    manager = workflow_registry.get_workflow(workflow_id)
+    if not manager:
+        return
+
+    try:
+        agent = ChromeExploratoryAgent()
+        results = await agent.run(config)
+
+        # Save results
+        manager.save_exploration_results(results)
+        manager.transition_to(WorkflowState.EXPLORATION_COMPLETE)
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        manager.transition_to(WorkflowState.FAILED, error=str(e))
+
+
+async def execute_spec_generation_workflow(workflow_id: str):
+    """Execute Spec Writer Agent"""
+    from orchestrator.agents.spec_writer_agent import SpecWriterAgent
+
+    manager = workflow_registry.get_workflow(workflow_id)
+    if not manager:
+        return
+
+    try:
+        exploration_results = manager.get_exploration_results()
+        config = manager.get_config()
+
+        spec_config = {
+            "mode": "from_exploration",
+            "url": config.get("url"),
+            "exploration_results": exploration_results
+        }
+
+        agent = SpecWriterAgent()
+        results = await agent.run(spec_config)
+
+        # Save specs
+        if "specs" in results:
+            manager.save_generated_specs(results["specs"])
+            manager.transition_to(WorkflowState.SPECS_READY)
+        else:
+            manager.transition_to(WorkflowState.FAILED, error="No specs generated")
+
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        manager.transition_to(WorkflowState.FAILED, error=str(e))
+
+
+def save_workflow_specs_to_specs_dir(workflow_id: str, specs: Dict[str, Dict[str, str]]) -> int:
+    """Save generated specs to the main specs/ directory"""
+    saved_count = 0
+
+    for category, files in specs.items():
+        for filename, content in files.items():
+            # Add workflow prefix to filename
+            prefixed_name = f"{workflow_id}_{filename}"
+            filepath = SPECS_DIR / prefixed_name
+            filepath.write_text(content)
+            saved_count += 1
+
+    return saved_count
