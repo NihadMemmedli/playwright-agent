@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect, useRef } from 'react';
-import { Bot, FileText, Play, Terminal, ChevronRight, CheckCircle2, AlertTriangle, Loader2, Clock, RotateCcw, Lock, Globe, Settings, Download, List, Sparkles, Zap, ArrowRight, Info } from 'lucide-react';
+import { Bot, FileText, Play, Terminal, ChevronRight, CheckCircle2, AlertTriangle, Loader2, Clock, RotateCcw, Lock, Globe, Settings, Download, List, Sparkles, Zap, ArrowRight, Info, X } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 
 interface AgentRun {
@@ -53,6 +53,9 @@ export default function AgentsPage() {
     const [isSynthesizing, setIsSynthesizing] = useState(false);
     const [showAdvanced, setShowAdvanced] = useState(false);
     const [sessions, setSessions] = useState<any[]>([]);
+    const [flowModalOpen, setFlowModalOpen] = useState(false);
+    const [selectedFlow, setSelectedFlow] = useState<any | null>(null);
+    const [loadingFlowDetails, setLoadingFlowDetails] = useState(false);
     const pollInterval = useRef<NodeJS.Timeout | null>(null);
 
     // Fetch history
@@ -129,6 +132,29 @@ export default function AgentsPage() {
             }
         } catch (e) {
             console.error("Failed to fetch specs", e);
+        }
+    };
+
+    // Fetch flow details from the API
+    const fetchFlowDetails = async (flowId: string) => {
+        if (!activeRun?.id) return;
+
+        setLoadingFlowDetails(true);
+        try {
+            const res = await fetch(`http://localhost:8001/api/agents/exploratory/${activeRun.id}/flows/${flowId}`);
+            if (res.ok) {
+                const data = await res.json();
+                setSelectedFlow(data.flow);
+                setFlowModalOpen(true);
+            } else {
+                const error = await res.json();
+                alert(`Failed to load flow details: ${error.detail || 'Unknown error'}`);
+            }
+        } catch (e) {
+            console.error("Failed to fetch flow details", e);
+            alert("Failed to load flow details. Please try again.");
+        } finally {
+            setLoadingFlowDetails(false);
         }
     };
 
@@ -771,16 +797,16 @@ export default function AgentsPage() {
                                                 )}
 
                                                 {/* Discovered Flows - Clear Display */}
-                                                {activeRun.result.discovered_flows && activeRun.result.discovered_flows.length > 0 ? (
+                                                {activeRun.result.discovered_flow_summaries && activeRun.result.discovered_flow_summaries.length > 0 ? (
                                                     <div>
                                                         <h4 style={{ fontWeight: 600, fontSize: '1rem', marginBottom: '1rem', color: 'var(--text)' }}>
-                                                            🔍 Discovered User Flows ({activeRun.result.discovered_flows.length})
+                                                            🔍 Discovered User Flows ({activeRun.result.total_flows_discovered || activeRun.result.discovered_flow_summaries.length})
                                                         </h4>
                                                         <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
                                                             These are the complete user journeys the agent found. Each one can be turned into a test.
                                                         </p>
                                                         <div style={{ display: 'grid', gap: '1rem' }}>
-                                                            {activeRun.result.discovered_flows.map((flow: any, i: number) => (
+                                                            {activeRun.result.discovered_flow_summaries.map((flow: any, i: number) => (
                                                                 <div key={i} style={{
                                                                     padding: '1rem',
                                                                     background: 'var(--surface)',
@@ -804,29 +830,44 @@ export default function AgentsPage() {
                                                                         </div>
                                                                         <div style={{ flex: 1 }}>
                                                                             <h5 style={{ fontWeight: 600, fontSize: '1rem', margin: '0 0 0.5rem 0' }}>
-                                                                                {flow.name}
+                                                                                {flow.title}
                                                                             </h5>
-                                                                            {flow.happy_path && (
-                                                                                <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 0.5rem 0', lineHeight: '1.5' }}>
-                                                                                    {flow.happy_path}
-                                                                                </p>
-                                                                            )}
+                                                                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
+                                                                                <span style={{ fontWeight: 500 }}>{flow.steps_count} steps</span>
+                                                                                {flow.entry_point && <span> • Starts: {flow.entry_point}</span>}
+                                                                                {flow.exit_point && <span> • Ends: {flow.exit_point}</span>}
+                                                                            </div>
                                                                             {flow.pages && flow.pages.length > 0 && (
                                                                                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>
                                                                                     <span style={{ fontWeight: 500 }}>Pages:</span> {flow.pages.join(' → ')}
                                                                                 </div>
                                                                             )}
-                                                                            {flow.edge_cases && flow.edge_cases.length > 0 && (
+                                                                            {flow.has_edge_cases && (
                                                                                 <div style={{ marginTop: '0.5rem', padding: '0.5rem', background: 'rgba(245, 158, 11, 0.1)', borderRadius: '6px' }}>
-                                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 500, marginBottom: '0.25rem', color: '#f59e0b' }}>
-                                                                                        ⚠️ Edge Cases ({flow.edge_cases.length})
-                                                                                    </div>
-                                                                                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                                                                                        {flow.edge_cases.join(' • ')}
+                                                                                    <div style={{ fontSize: '0.75rem', fontWeight: 500, color: '#f59e0b' }}>
+                                                                                        ⚠️ Includes edge cases
                                                                                     </div>
                                                                                 </div>
                                                                             )}
                                                                         </div>
+                                                                        <button
+                                                                            onClick={() => fetchFlowDetails(flow.id)}
+                                                                            disabled={loadingFlowDetails}
+                                                                            style={{
+                                                                                padding: '0.5rem 1rem',
+                                                                                background: 'var(--primary)',
+                                                                                color: 'white',
+                                                                                border: 'none',
+                                                                                borderRadius: '6px',
+                                                                                fontSize: '0.85rem',
+                                                                                fontWeight: 500,
+                                                                                cursor: loadingFlowDetails ? 'not-allowed' : 'pointer',
+                                                                                opacity: loadingFlowDetails ? 0.6 : 1,
+                                                                                whiteSpace: 'nowrap'
+                                                                            }}
+                                                                        >
+                                                                            {loadingFlowDetails ? 'Loading...' : 'View Details'}
+                                                                        </button>
                                                                     </div>
                                                                 </div>
                                                             ))}
@@ -960,6 +1001,109 @@ export default function AgentsPage() {
                         )}
                     </div>
                 </div>
+
+                {/* Flow Details Modal */}
+                {flowModalOpen && selectedFlow && (
+                    <div style={{
+                        position: 'fixed',
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        background: 'rgba(0, 0, 0, 0.5)',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        zIndex: 1000,
+                        padding: '1rem'
+                    }}>
+                        <div style={{
+                            background: 'var(--surface)',
+                            borderRadius: '12px',
+                            maxWidth: '700px',
+                            maxHeight: '80vh',
+                            overflowY: 'auto',
+                            padding: '1.5rem',
+                            position: 'relative',
+                            border: '1px solid var(--border)'
+                        }}>
+                            <button
+                                onClick={() => setFlowModalOpen(false)}
+                                style={{
+                                    position: 'absolute',
+                                    top: '1rem',
+                                    right: '1rem',
+                                    background: 'transparent',
+                                    border: 'none',
+                                    cursor: 'pointer',
+                                    color: 'var(--text-secondary)'
+                                }}
+                            >
+                                <X size={20} />
+                            </button>
+
+                            <h3 style={{ margin: '0 0 1rem 0', fontSize: '1.3rem', fontWeight: 600 }}>
+                                {selectedFlow.title}
+                            </h3>
+
+                            {selectedFlow.pages && selectedFlow.pages.length > 0 && (
+                                <div style={{ marginBottom: '1rem' }}>
+                                    <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem' }}>Pages</h4>
+                                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                                        {selectedFlow.pages.map((page: string, i: number) => (
+                                            <span key={i} style={{
+                                                padding: '0.25rem 0.5rem',
+                                                background: 'var(--surface-hover)',
+                                                borderRadius: '4px',
+                                                fontSize: '0.8rem'
+                                            }}>
+                                                {page}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {selectedFlow.happy_path && (
+                                <div style={{ marginBottom: '1rem' }}>
+                                    <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem', color: 'var(--success)' }}>Happy Path</h4>
+                                    <p style={{ fontSize: '0.9rem', lineHeight: '1.5', margin: 0 }}>
+                                        {selectedFlow.happy_path}
+                                    </p>
+                                </div>
+                            )}
+
+                            {selectedFlow.edge_cases && selectedFlow.edge_cases.length > 0 && (
+                                <div style={{ marginBottom: '1rem' }}>
+                                    <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem', color: '#f59e0b' }}>Edge Cases</h4>
+                                    <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
+                                        {selectedFlow.edge_cases.map((ec: string, i: number) => (
+                                            <li key={i} style={{ fontSize: '0.9rem', marginBottom: '0.25rem' }}>{ec}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {selectedFlow.test_ideas && selectedFlow.test_ideas.length > 0 && (
+                                <div style={{ marginBottom: '1rem' }}>
+                                    <h4 style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: '0.5rem' }}>Test Ideas</h4>
+                                    <ul style={{ margin: 0, paddingLeft: '1.5rem' }}>
+                                        {selectedFlow.test_ideas.map((idea: string, i: number) => (
+                                            <li key={i} style={{ fontSize: '0.9rem', marginBottom: '0.25rem' }}>{idea}</li>
+                                        ))}
+                                    </ul>
+                                </div>
+                            )}
+
+                            {selectedFlow.entry_point && (
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                    Entry: {selectedFlow.entry_point}
+                                    {selectedFlow.exit_point && ` → Exit: ${selectedFlow.exit_point}`}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

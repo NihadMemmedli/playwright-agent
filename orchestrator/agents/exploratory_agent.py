@@ -1,8 +1,11 @@
 from typing import Dict, Any, List, Set, Optional
 import asyncio
 import time
+import json
+import os
 from datetime import datetime
 from dataclasses import dataclass, field
+from pathlib import Path
 from .base_agent import BaseAgent
 from ..utils.json_utils import extract_json_from_markdown
 
@@ -232,20 +235,26 @@ If a dialog appears:
 2. Take a snapshot to verify the dialog is closed
 3. Continue with your exploration
 
-OUTPUT FORMAT (return ONLY JSON at the end - KEEP IT CONCISE):
+OUTPUT FORMAT (return ONLY JSON at the end):
 ```json
 {{
-  "summary": "One sentence overview (max 100 chars)",
+  "summary": "One sentence overview (max 150 chars)",
   "discovered_flows": [
     {{
-      "name": "Flow Name",
+      "id": "flow_1",
+      "title": "Flow Name (descriptive)",
       "pages": ["page1", "page2"],
-      "happy_path": "Brief description",
-      "edge_cases": ["case1", "case2"]
+      "steps_count": 5,
+      "happy_path": "Complete happy path description",
+      "edge_cases": ["case1", "case2"],
+      "test_ideas": ["idea1", "idea2"],
+      "entry_point": "/start-url",
+      "exit_point": "/end-url",
+      "complexity": "medium"
     }}
   ],
   "action_trace": [
-    {{"step": 1, "action": "navigate", "target": "url", "outcome": "ok"}}
+    {{"step": 1, "action": "navigate", "target": "url", "outcome": "ok", "is_new_discovery": false}}
   ],
   "happy_paths_found": ["Flow1"],
   "edge_cases_found": ["case1"],
@@ -261,10 +270,10 @@ OUTPUT FORMAT (return ONLY JSON at the end - KEEP IT CONCISE):
 ```
 
 CRITICAL OUTPUT CONSTRAINTS:
-- action_trace: MAX 20 entries - only significant actions
-- discovered_flows: MAX 5 flows - only complete flows
-- Each string field: MAX 200 characters
-- Total JSON size: UNDER 50KB
+- action_trace: MAX 30 entries - only significant actions
+- discovered_flows: NO LIMIT - include ALL complete flows you discover
+- Each flow: include title, steps, happy_path, edge_cases, test_ideas
+- Each string field: MAX 300 characters (be descriptive but concise)
 - NO HTML, NO screenshots, NO long text dumps
 
 Begin exploration now:
@@ -274,8 +283,9 @@ Step 3: Identify and test user flows
 Step 4: Return JSON summary when done or when termination condition is met"""
 
     def _process_results(self, result: Any, config: Dict[str, Any]) -> Dict[str, Any]:
-        """Process exploration results."""
+        """Process exploration results and save full flows to file."""
         elapsed = time.time() - self.state.start_time
+        run_id = config.get("run_id")
 
         try:
             data = extract_json_from_markdown(result)
@@ -298,6 +308,28 @@ Step 4: Return JSON summary when done or when termination condition is met"""
                     "errors_found": self.coverage.errors_found,
                     "coverage_score": self.coverage.coverage_score()
                 }
+
+            # Save full flows to file and return summaries
+            if "discovered_flows" in data and run_id:
+                full_flows = data["discovered_flows"]
+                flow_summaries = self._save_flows_and_generate_summaries(
+                    full_flows, run_id
+                )
+                data["discovered_flow_summaries"] = flow_summaries
+                data["total_flows_discovered"] = len(full_flows)
+                # Remove full flows from main result to keep it small
+                del data["discovered_flows"]
+            elif "discovered_flows" in data:
+                # Fallback if no run_id: just use the flows as-is
+                data["discovered_flow_summaries"] = [
+                    self._create_flow_summary(flow, i)
+                    for i, flow in enumerate(data["discovered_flows"])
+                ]
+                data["total_flows_discovered"] = len(data["discovered_flows"])
+                del data["discovered_flows"]
+            else:
+                data["discovered_flow_summaries"] = []
+                data["total_flows_discovered"] = 0
 
             # Determine termination reason
             data["termination_reason"] = self._get_termination_reason(
@@ -333,8 +365,46 @@ Step 4: Return JSON summary when done or when termination condition is met"""
                     "pages_visited": self.coverage.pages_visited,
                     "errors_found": self.coverage.errors_found,
                 },
+                "discovered_flow_summaries": [],
+                "total_flows_discovered": 0,
                 "parsing_failed": True
             }
+
+    def _save_flows_and_generate_summaries(
+        self, flows: List[Dict], run_id: str
+    ) -> List[Dict]:
+        """Save full flows to file and return summaries."""
+        # Create runs directory if it doesn't exist
+        runs_dir = Path("runs")
+        runs_dir.mkdir(exist_ok=True)
+
+        # Create run-specific directory
+        run_dir = runs_dir / run_id
+        run_dir.mkdir(exist_ok=True)
+
+        # Save full flows to JSON file
+        flows_file = run_dir / "flows.json"
+        with open(flows_file, 'w') as f:
+            json.dump({"flows": flows}, f, indent=2)
+
+        print(f"💾 Saved {len(flows)} flows to {flows_file}")
+
+        # Generate summaries
+        return [self._create_flow_summary(flow, i) for i, flow in enumerate(flows)]
+
+    def _create_flow_summary(self, flow: Dict, index: int) -> Dict:
+        """Create a summary from a full flow."""
+        return {
+            "id": flow.get("id", f"flow_{index + 1}"),
+            "title": flow.get("title", f"Flow {index + 1}"),
+            "pages": flow.get("pages", []),
+            "steps_count": flow.get("steps_count", len(flow.get("pages", []))),
+            "has_happy_path": bool(flow.get("happy_path")),
+            "has_edge_cases": bool(flow.get("edge_cases") and len(flow.get("edge_cases", [])) > 0),
+            "entry_point": flow.get("entry_point", ""),
+            "exit_point": flow.get("exit_point", ""),
+            "complexity": flow.get("complexity", "unknown")
+        }
 
     def _get_termination_reason(self, elapsed: float, time_limit_minutes: int) -> str:
         """Determine why exploration terminated."""

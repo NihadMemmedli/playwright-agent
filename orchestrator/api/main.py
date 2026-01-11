@@ -566,6 +566,8 @@ async def execute_agent_background(run_id: str, agent_type: str, config: dict):
         result = {}
         if agent_type == "exploratory":
             agent = ExploratoryAgent()
+            # Pass run_id to agent for file storage
+            config["run_id"] = run_id
             result = await agent.run(config)
         elif agent_type == "writer":
             agent = SpecWriterAgent()
@@ -778,6 +780,65 @@ async def get_exploration_specs(run_id: str, session: Session = Depends(get_sess
             }
 
     raise HTTPException(status_code=404, detail="No completed spec synthesis found")
+
+
+@app.get("/api/agents/exploratory/{run_id}/flows/{flow_id}")
+async def get_flow_details(run_id: str, flow_id: str):
+    """
+    Get full details for a specific discovered flow.
+
+    Reads the flows.json file saved during exploration and returns
+    the complete flow data including happy path, edge cases, and test ideas.
+    """
+    import os
+    from pathlib import Path
+
+    # Path to flows.json file
+    flows_file = Path("runs") / run_id / "flows.json"
+
+    if not flows_file.exists():
+        raise HTTPException(
+            status_code=404,
+            detail=f"Flows file not found for run {run_id}. The exploration may not have completed yet."
+        )
+
+    try:
+        with open(flows_file, 'r') as f:
+            data = json.load(f)
+
+        flows = data.get("flows", [])
+
+        # Find the requested flow by id
+        flow = next((f for f in flows if f.get("id") == flow_id), None)
+
+        if not flow:
+            # Try to find by index (flow_1 = index 0, flow_2 = index 1, etc.)
+            if flow_id.startswith("flow_"):
+                try:
+                    index = int(flow_id.split("_")[1]) - 1
+                    if 0 <= index < len(flows):
+                        flow = flows[index]
+                except (ValueError, IndexError):
+                    pass
+
+        if not flow:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Flow {flow_id} not found in run {run_id}. Available flows: {[f.get('id') for f in flows]}"
+            )
+
+        return {"flow": flow}
+
+    except json.JSONDecodeError:
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to parse flows.json file"
+        )
+    except Exception as e:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error reading flow details: {str(e)}"
+        )
 
 
 @app.get("/api/agents/sessions")
