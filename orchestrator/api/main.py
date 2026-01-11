@@ -676,8 +676,9 @@ async def run_exploratory_agent(request: ExploratoryRunRequest, background_tasks
         if auth_result.get("success") and auth_result.get("instructions"):
             config["auth_instructions"] = auth_result["instructions"]
 
-        # Add auth test data
-        config["test_data"] = config.get("test_data", {})
+        # Add auth test data (ensure test_data is a dict)
+        if config.get("test_data") is None:
+            config["test_data"] = {}
         config["test_data"].update(get_auth_test_data(request.auth or {}))
 
     # Create DB record
