@@ -193,7 +193,7 @@ export default function AgentsPage() {
         setIsStarting(true);
         try {
             // Build auth config
-            let authConfig = null;
+            let authConfig: any = null;
             if (authType !== 'none') {
                 authConfig = { type: authType };
                 if (authType === 'credentials') {
