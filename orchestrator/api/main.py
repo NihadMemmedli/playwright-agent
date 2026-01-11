@@ -44,6 +44,16 @@ def sync_data_from_files():
     """Sync existing file-based runs and metadata to DB on startup."""
     print("Syncing data from files to DB...")
     with Session(engine) as session:
+        # 0. Fix any existing runs with null test_name
+        runs_with_null_name = session.exec(
+            select(DBTestRun).where(DBTestRun.test_name == None)  # noqa: E711
+        ).all()
+        for run in runs_with_null_name:
+            run.test_name = run.spec_name
+        session.commit()
+        if runs_with_null_name:
+            print(f"Fixed {len(runs_with_null_name)} runs with null test_name")
+
         # 1. Sync Runs
         if RUNS_DIR.exists():
             for d in RUNS_DIR.iterdir():
@@ -104,7 +114,7 @@ def sync_data_from_files():
                     spec_name=spec_name,
                     status=status,
                     created_at=mtime,
-                    test_name=test_name,
+                    test_name=test_name or spec_name,  # Use spec_name as fallback
                     steps_completed=steps_completed,
                     total_steps=total_steps,
                     browser=browser
@@ -436,6 +446,7 @@ def create_run(request: RunRequest, background_tasks: BackgroundTasks, session: 
     run = DBTestRun(
         id=run_id,
         spec_name=request.spec_name,
+        test_name=request.spec_name,  # Set test_name from spec_name
         status="pending",
         browser=request.browser or "chromium"
     )
@@ -464,6 +475,7 @@ def create_bulk_run(request: BulkRunRequest, background_tasks: BackgroundTasks, 
         run = DBTestRun(
             id=run_id,
             spec_name=spec_name,
+            test_name=spec_name,  # Set test_name from spec_name
             status="pending",
             browser=request.browser
         )
