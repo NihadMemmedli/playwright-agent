@@ -793,8 +793,9 @@ async def get_flow_details(run_id: str, flow_id: str):
     import os
     from pathlib import Path
 
-    # Path to flows.json file
-    flows_file = Path("runs") / run_id / "flows.json"
+    # Path to flows.json file (at project root)
+    project_root = Path(__file__).parent.parent.parent
+    flows_file = project_root / "runs" / run_id / "flows.json"
 
     if not flows_file.exists():
         raise HTTPException(

@@ -374,8 +374,9 @@ Step 4: Return JSON summary when done or when termination condition is met"""
         self, flows: List[Dict], run_id: str
     ) -> List[Dict]:
         """Save full flows to file and return summaries."""
-        # Create runs directory if it doesn't exist
-        runs_dir = Path("runs")
+        # Get project root (2 levels up from this file)
+        project_root = Path(__file__).parent.parent.parent
+        runs_dir = project_root / "runs"
         runs_dir.mkdir(exist_ok=True)
 
         # Create run-specific directory
