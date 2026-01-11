@@ -34,10 +34,12 @@ class SpecSynthesisAgent(BaseAgent):
         - exploration_results: Results from ExploratoryAgent
         - url: Base URL of explored application
         - output_dir: Directory to save specs (optional)
+        - run_id: Run ID to read full flows from flows.json
         """
         exploration_results = config.get("exploration_results")
         base_url = config.get("url", "")
         output_dir = Path(config.get("output_dir", "specs/generated"))
+        run_id = config.get("run_id")
         output_dir.mkdir(parents=True, exist_ok=True)
 
         if not exploration_results:
@@ -46,13 +48,24 @@ class SpecSynthesisAgent(BaseAgent):
                 "error": "exploration_results is required"
             }
 
+        # Load full flows from flows.json if available
+        discovered_flows = []
+        if run_id:
+            discovered_flows = self._load_flows_from_file(run_id)
+            print(f"   Loaded {len(discovered_flows)} flows from flows.json")
+
+        # Fallback to discovered_flows in exploration_results (old format)
+        if not discovered_flows:
+            discovered_flows = exploration_results.get("discovered_flows", [])
+
         print(f"✍️ Starting Spec Synthesis Agent")
-        print(f"   Discovered flows: {len(exploration_results.get('discovered_flows', []))}")
+        print(f"   Discovered flows: {len(discovered_flows)}")
         print(f"   Output directory: {output_dir}")
 
         # Analyze and synthesize
         synthesis_result = await self._synthesize_specs(
             exploration_results,
+            discovered_flows,
             base_url,
             output_dir
         )
@@ -62,6 +75,7 @@ class SpecSynthesisAgent(BaseAgent):
     async def _synthesize_specs(
         self,
         exploration_results: Dict[str, Any],
+        discovered_flows: List[Dict],
         base_url: str,
         output_dir: Path
     ) -> Dict[str, Any]:
@@ -75,7 +89,7 @@ class SpecSynthesisAgent(BaseAgent):
         We'll use agent-assisted for better quality.
         """
         # Build synthesis prompt
-        prompt = self._build_synthesis_prompt(exploration_results, base_url)
+        prompt = self._build_synthesis_prompt(exploration_results, discovered_flows, base_url)
 
         # Query agent
         result = await self._query_agent(prompt)
@@ -106,6 +120,7 @@ class SpecSynthesisAgent(BaseAgent):
             # Fallback: generate specs directly
             return await self._generate_specs_directly(
                 exploration_results,
+                discovered_flows,
                 base_url,
                 output_dir
             )
@@ -113,6 +128,7 @@ class SpecSynthesisAgent(BaseAgent):
     async def _generate_specs_directly(
         self,
         exploration_results: Dict[str, Any],
+        discovered_flows: List[Dict],
         base_url: str,
         output_dir: Path
     ) -> Dict[str, Any]:
@@ -121,7 +137,6 @@ class SpecSynthesisAgent(BaseAgent):
 
         Generates specs based on exploration results using Python logic.
         """
-        discovered_flows = exploration_results.get("discovered_flows", [])
         action_trace = exploration_results.get("action_trace", [])
 
         specs = {
@@ -133,7 +148,7 @@ class SpecSynthesisAgent(BaseAgent):
 
         # Generate specs for each discovered flow
         for flow in discovered_flows:
-            flow_name = flow.get("name", "Unknown Flow")
+            flow_name = flow.get("title", flow.get("name", "Unknown Flow"))
             flows_covered.append(flow_name)
 
             # Sanitize filename
@@ -171,7 +186,7 @@ class SpecSynthesisAgent(BaseAgent):
 
     def _generate_happy_path_spec(self, flow: Dict[str, Any], base_url: str, action_trace: List[Dict]) -> str:
         """Generate a happy path spec for a flow."""
-        flow_name = flow.get("name", "Unknown Flow")
+        flow_name = flow.get("title", flow.get("name", "Unknown Flow"))
         pages = flow.get("pages", [])
         steps = flow.get("steps", [])
         happy_path = flow.get("happy_path", "")
@@ -212,7 +227,7 @@ Tests the successful completion of the {flow_name} flow.
 
     def _generate_edge_cases_spec(self, flow: Dict[str, Any], base_url: str, action_trace: List[Dict]) -> str:
         """Generate an edge cases spec for a flow."""
-        flow_name = flow.get("name", "Unknown Flow")
+        flow_name = flow.get("title", flow.get("name", "Unknown Flow"))
         edge_cases = flow.get("edge_cases", [])
 
         if not edge_cases:
@@ -260,9 +275,8 @@ Tests edge cases and validation for the {flow_name} flow.
 - Invalid data cannot be submitted
 """
 
-    def _build_synthesis_prompt(self, exploration_results: Dict[str, Any], base_url: str) -> str:
+    def _build_synthesis_prompt(self, exploration_results: Dict[str, Any], discovered_flows: List[Dict], base_url: str) -> str:
         """Build the synthesis prompt for the agent."""
-        discovered_flows = exploration_results.get("discovered_flows", [])
         action_trace = exploration_results.get("action_trace", [])
         happy_paths = exploration_results.get("happy_paths_found", [])
         edge_cases = exploration_results.get("edge_cases_found", [])
@@ -271,11 +285,15 @@ Tests edge cases and validation for the {flow_name} flow.
         if discovered_flows:
             flows_section = "DISCOVERED FLOWS:\n"
             for flow in discovered_flows:
-                flows_section += f"\n- {flow.get('name', 'Unnamed')}: {flow.get('happy_path', 'No description')}"
-                if flow.get('pages'):
+                flow_title = flow.get("title", flow.get("name", "Unnamed"))
+                flow_desc = flow.get("happy_path", "No description")
+                flows_section += f"\n- {flow_title}: {flow_desc}"
+                if flow.get("pages"):
                     flows_section += f"\n  Pages: {' → '.join(flow['pages'])}"
-                if flow.get('edge_cases'):
+                if flow.get("edge_cases"):
                     flows_section += f"\n  Edge Cases: {', '.join(flow['edge_cases'])}"
+                if flow.get("test_ideas"):
+                    flows_section += f"\n  Test Ideas: {', '.join(flow['test_ideas'][:3])}"  # Show first 3
             flows_section += "\n"
 
         trace_section = ""
@@ -362,6 +380,36 @@ Now generate the specs based on the exploration results above."""
         name = re.sub(r'[^\w\s-]', '', name)
         name = re.sub(r'[-\s]+', '_', name)
         return name.lower().strip('_')
+
+    def _load_flows_from_file(self, run_id: str) -> List[Dict[str, Any]]:
+        """
+        Load full flows from the flows.json file created during exploration.
+
+        Args:
+            run_id: The run ID to load flows from
+
+        Returns:
+            List of discovered flows with full details, or empty list if file not found
+        """
+        from pathlib import Path
+
+        # Get project root (2 levels up from this file)
+        project_root = Path(__file__).parent.parent.parent
+        flows_file = project_root / "runs" / run_id / "flows.json"
+
+        if not flows_file.exists():
+            print(f"   ⚠️  flows.json not found at {flows_file}")
+            return []
+
+        try:
+            with open(flows_file, 'r') as f:
+                data = json.load(f)
+                flows = data.get("flows", [])
+                print(f"   ✅ Loaded {len(flows)} flows from {flows_file}")
+                return flows
+        except Exception as e:
+            print(f"   ❌ Error loading flows.json: {e}")
+            return []
 
     def _infer_test_ideas(self, exploration_results: Dict[str, Any]) -> List[Dict[str, Any]]:
         """

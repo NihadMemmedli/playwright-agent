@@ -743,7 +743,8 @@ async def synthesize_specs(run_id: str, background_tasks: BackgroundTasks, sessi
     synthesis_config = {
         "exploration_results": exploration_result,
         "url": exploration_result.get("config", {}).get("url", ""),
-        "output_dir": output_dir
+        "output_dir": output_dir,
+        "run_id": run_id  # Pass run_id so agent can read flows.json
     }
 
     synthesis_run = AgentRun(
