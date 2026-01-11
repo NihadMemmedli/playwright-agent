@@ -11,7 +11,7 @@ Convert plain English test specifications into production-ready Playwright TypeS
 
 This automated pipeline transforms markdown-based test descriptions into executable Playwright tests. It leverages the power of LLMs and the Claude Code Agent SDK to intelligently plan, execute, and validate test scenarios.
 
-![Dashboard Screenshot](./dashboard-screenshot.png)
+![Dashboard Screenshot](assets/dashboard-screenshot.png)
 *AI-powered test automation with a modern, intuitive dashboard for managing specs, monitoring execution trends, and analyzing test results.*
 
 ## ✨ Features
